@@ -1,0 +1,15 @@
+Metadata-Version: 2.4
+Name: ionization
+Version: 0.1.0
+Summary: Machine Learning Identification of Ionization Cones in AGN
+Author-email: Will <your-email@example.com>
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: matplotlib
+Requires-Dist: astropy
+Requires-Dist: scikit-learn
+Requires-Dist: pandas
+
+1. Create a pyproject.toml file and create the project as a developement directory.

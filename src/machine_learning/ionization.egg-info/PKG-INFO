@@ -1,0 +1,140 @@
+Metadata-Version: 2.4
+Name: ionization
+Version: 0.1.0
+Summary: Machine Learning Identification of Ionization Cones in AGN using JWST data
+Author-email: Will <william.olson@my.utsa.edu>
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: numpy>=1.24
+Requires-Dist: scipy>=1.10
+Requires-Dist: matplotlib>=3.7
+Requires-Dist: astropy>=6.0
+Requires-Dist: pandas>=2.0
+Requires-Dist: scikit-learn>=1.3
+Requires-Dist: torch>=2.2
+Requires-Dist: torchvision>=0.17
+Requires-Dist: tqdm>=4.66
+Requires-Dist: rich>=13.7
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: black>=24.0; extra == "dev"
+Requires-Dist: ruff>=0.5.0; extra == "dev"
+Requires-Dist: jupyter>=1.0; extra == "dev"
+Requires-Dist: ipykernel>=6.29; extra == "dev"
+Provides-Extra: docs
+Requires-Dist: sphinx>=7.3; extra == "docs"
+Requires-Dist: furo>=2024.0.0; extra == "docs"
+Dynamic: license-file
+
+This project uses machine learning techniques to identify and segment ionization cones in active galactic nuclei (AGN) using spatially-resolved [O III] emission maps.
+
+## Background
+
+Ionization cones are important signatures of AGN activity, often traced using [O III] lines. They can indicate the geometry of the narrow-line region and the extent of radiation escaping from the central engine.
+
+This project is inspired by the need for automated methods in identifying these structures in large IFU dataset.
+
+ IonizationCone-Automization
+ Automatic Ionization Cone Detection in AGN via Imaging Data
+ What Is This?
+
+IonizationCone-Automization is a machine learning pipeline that automatically detects ionization cones in active galactic nuclei (AGN) using 2D emission-line imaging data, such as [O III] maps from JWST or HST.
+It replaces manual, time-consuming segmentation with a trained UNet model — making analysis fast, repeatable, and scalable.
+ Why It Matters
+
+    “Imaging observation is more efficient with a large field of view, which means the method developed based on images will have wide applications.”
+    — Mentor insight
+
+Large-scale imaging surveys produce massive volumes of AGN data. Manual cone identification limits scientific throughput and introduces subjective bias. This tool automates that detection, enabling:
+
+    Faster AGN classification
+
+    Morphological studies across redshift
+
+    Exploration of obscuration, orientation, and feedback
+
+ What It Does
+
+ Trains on 2D synthetic and real narrowband images
+ Predicts binary ionization cone masks from FITS or .npy inputs
+ Visualizes segmentation results and saves predictions
+ Evaluates performance with IoU, Dice, Precision, Recall
+ Designed for research reproducibility & modular extension
+ Data In, Cone Out
+
+    Input:
+
+        2D [O III] (or similar) narrowband image (FITS or NumPy)
+
+    Output:
+
+        Binary mask predicting cone structure
+
+        Optional visualization and metrics
+
+        Model-ready .pth weights
+
+Under the Hood
+
+    Model: Custom 2D UNet architecture (src/models/model_2d.py)
+
+    Loss: Weighted Dice + BCE
+
+    Data Loader: Supports real and synthetic data (organized under data/)
+
+    Training / Eval Scripts: Located in scripts/2d/
+
+    Prediction: Drop your data in, run one script, and get segmentations
+
+##  Objectives
+
+- Create a reproducible pipeline to identify and segment ionization cones
+- Train ML models on simulated or labeled AGN datasets
+- Validate with known AGN cone geometries
+- Generate valid model predictions
+
+##  Project Structure
+
+Ionization/
+├── data/                   # Input data directory (FITS or .npy files)
+│   └── sample.fits         # Example image file (or real observation)
+│
+├── results/                # Output data like masks, figures, and logs
+│   └── example_mask.npy    # Example thresholded mask from preprocessing
+│
+├── scripts/                # Standalone scripts for running specific tasks
+│   └── simulate.py         # Script to generate synthetic OIII cone images
+│
+├── src/
+│   └── ionization/         # Source code for the core image processing tools
+│       ├── __init__.py     # Initializes the ionization module
+│       └── preprocess.py   # Functions for loading, normalizing, and thresholding images
+│
+├── venv/                   # Local Python virtual environment (not tracked by Git)
+│   └── ...                 # Site-packages, binaries, etc.
+│
+├── .gitignore              # Ignores virtual environment, temp files, etc.
+├── pyproject.toml          # Project metadata and dependencies (PEP 518)
+├── README.md               # This documentation file
+
+##  Setup
+
+git clone https://github.com/yourusername/IonizationCone-Automization.git
+cd IonizationCone-Automization
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+	1. Setting up 
+##  Acknowledgments
+
+- Mentors: Dr. Chris Packham, John Schneider Doctorate, Lulu Zhang Postdoc
+- Data sources: SDSS, MaNGA, JWST mock catalogs
+- Thanks to the UTSA MAE Group for project support
+git clone https://github.com/yourusername/IonizationCone-Automization.git
+cd IonizationCone-Automization
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+

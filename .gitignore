@@ -1,0 +1,46 @@
+# ------------------
+# Data (local only)
+# ------------------
+data/
+!data/.gitkeep
+
+# ------------------
+# Virtual environments
+# ------------------
+venv/
+.env/
+.envrc/
+
+# ------------------
+# Model artifacts
+# ------------------
+*.pth
+*.ckpt
+
+# ------------------
+# Python junk
+# ------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ------------------
+# Jupyter
+# ------------------
+.ipynb_checkpoints/
+
+# ------------------
+# OS / editor junk
+# ------------------
+.DS_Store
+*.swp
+*.swo
+nvim.log
+
+# ------------------
+# Optional: large results (keep plots only)
+# ------------------
+results/**/*.fits
+results/**/*.npy
+venv/
