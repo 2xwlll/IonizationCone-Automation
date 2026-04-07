@@ -1,6 +1,17 @@
 #!/usr/bin/env python3
-
 import os
+import datetime
+# Me trying to be organized on training lol
+
+RUN_NAME = datetime.datetime.now().strftime("run_%Y%m%d_%H%M%S")
+
+BASE_RESULTS_DIR = os.path.join("results", "2d", "unet", RUN_NAME)
+
+MODEL_DIR = os.path.join(BASE_RESULTS_DIR, "models")
+PLOT_DIR  = os.path.join(BASE_RESULTS_DIR, "plots")
+SAMPLE_DIR = os.path.join(BASE_RESULTS_DIR, "samples")
+
+# Actual training imports
 import torch
 from torch import optim
 from torch.utils.data import DataLoader, ConcatDataset, random_split
@@ -21,12 +32,18 @@ from src.machine_learning.losses.combined_BCE_Dice import BCEDiceLoss
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 DATASETS = {
-    "real": ("data/2d/processed/real", "data/2d/masks/real"),
-    "synthetic": ("data/2d/processed/synthetic", "data/2d/masks/synthetic")
+    "synthetic_train": (
+        "data/2d/derived_from_cubes/synthetic/processed/norm_v1/train/images",
+        "data/2d/derived_from_cubes/synthetic/processed/norm_v1/train/masks"
+    ),
+    "synthetic_val": (
+        "data/2d/derived_from_cubes/synthetic/processed/norm_v1/val/images",
+        "data/2d/derived_from_cubes/synthetic/processed/norm_v1/val/masks"
+    )
 }
 
-MODEL_SAVE_PATH = "results/unet_best_2d.pth"
-CHECKPOINT_PATH = "results/unet_checkpoint.pth"
+MODEL_SAVE_PATH = os.path.join(MODEL_DIR, "best.pth")
+CHECKPOINT_PATH = os.path.join(MODEL_DIR, "checkpoint.pth")
 
 BATCH_SIZE = 2
 EPOCHS = 200
@@ -80,21 +97,8 @@ def split_dataset(dataset, val_split):
 
 
 def build_loaders():
-    real = load_dataset(*DATASETS["real"])
-    synth = load_dataset(*DATASETS["synthetic"])
-
-    real_train, real_val = split_dataset(real, VAL_SPLIT)
-    synth_train, synth_val = split_dataset(synth, VAL_SPLIT)
-
-    train_set = ConcatDataset([
-        real_train,
-        synth_train
-    ])
-
-    val_set = ConcatDataset([
-        real_val,
-        synth_val
-    ])
+    train_set = load_dataset(*DATASETS["synthetic_train"])
+    val_set   = load_dataset(*DATASETS["synthetic_val"])
 
     train_loader = DataLoader(
         train_set,
@@ -149,9 +153,13 @@ def train_one_epoch(model, loader, optimizer, loss_fn, scaler):
 
         optimizer.zero_grad()
 
-        with autocast():
-            preds = model(imgs)
-            loss = loss_fn(preds, masks)
+    from contextlib import nullcontext
+
+    amp_context = autocast if DEVICE == "cuda" else nullcontext
+
+    with amp_context():
+        preds = model(imgs)
+        loss = loss_fn(preds, masks)
 
         scaler.scale(loss).backward()
         scaler.step(optimizer)
@@ -185,6 +193,10 @@ def evaluate(model, loader, loss_fn):
 # MAIN
 # --------------------------
 def main():
+    os.makedirs(MODEL_DIR, exist_ok=True)
+    os.makedirs(PLOT_DIR, exist_ok=True)
+    os.makedirs(SAMPLE_DIR, exist_ok=True)
+    #Now train
     train_loader, val_loader, n_train, n_val = build_loaders()
 
     print(f"\nTrain samples: {n_train} | Val samples: {n_val}")
@@ -193,7 +205,7 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=LR)
     scaler = GradScaler()
 
-    loss_fn = BCEDiceLoss(
+    loss_fn = BCEDiceLoss( # do absolutely nothing right now
         bce_weight=1.0,
         dice_weight=3.0,
         pos_weight=20.0
@@ -236,11 +248,11 @@ def main():
     plt.plot(history["val"], label="Val Loss")
     plt.plot(history["dice"], label="Val Dice")
     plt.legend()
-    plt.savefig("results/training_curves.png")
+    plt.savefig(os.path.join(PLOT_DIR, "training_curves.png"))
     plt.close()
 
     print("\nDone. Saved model + curves.")
-
+    print(f"\nSaving results to: {BASE_RESULTS_DIR}\n")
 
 if __name__ == "__main__":
     main()
