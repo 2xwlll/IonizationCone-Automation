@@ -2,152 +2,151 @@
 
 import os
 import torch
-import argparse
-import matplotlib.pyplot as plt
 import numpy as np
-from pathlib import Path
+import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 
 from src.machine_learning.datasets.ionization_dataset import IonizationConeDataset2D
 from src.machine_learning.models.model_2d import UNet
-
 
 # --------------------------
 # CONFIG
 # --------------------------
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-DEFAULT_IMG_DIR = "data/2d/derived_from_cubes/synthetic/processed/norm_v1/val/images"
-DEFAULT_MASK_DIR = "data/2d/derived_from_cubes/synthetic/processed/norm_v1/val/masks"
+BASE_RESULTS_DIR = "results/2d/unet"
+DATASET_PATH = "data/2d/synthetic_bicone/val"
 
+BATCH_SIZE = 4
+NUM_SAMPLES = 6
+SAVE_DIR = "results/visualizations"
 
-# --------------------------
-# ARGUMENTS
-# --------------------------
-parser = argparse.ArgumentParser()
-
-parser.add_argument("--model", type=str, default=None, help="Path to model .pth (auto if None)")
-parser.add_argument("--data_img", type=str, default=None)
-parser.add_argument("--data_mask", type=str, default=None)
-parser.add_argument("--num_samples", type=int, default=5)
-parser.add_argument("--save_dir", type=str, default="viz_outputs")
-
-args = parser.parse_args()
-
+os.makedirs(SAVE_DIR, exist_ok=True)
 
 # --------------------------
-# AUTO-FIND LATEST RUN
+# FIND LATEST RUN
 # --------------------------
-def get_latest_model():
-    base = Path("results/2d/unet")
+def get_latest_run(base_dir):
+    if not os.path.exists(base_dir):
+        raise FileNotFoundError(f"No such directory: {base_dir}")
 
-    if not base.exists():
-        raise FileNotFoundError(f"Missing directory: {base}")
-
-    runs = sorted([p for p in base.iterdir() if p.is_dir()])
+    runs = [
+        d for d in os.listdir(base_dir)
+        if os.path.isdir(os.path.join(base_dir, d)) and d.startswith("run_")
+    ]
 
     if not runs:
-        raise FileNotFoundError("No training runs found.")
+        raise ValueError("No run folders found.")
 
-    latest_run = runs[-1]
-    model_path = latest_run / "models" / "best.pth"
+    runs.sort()
+    latest = runs[-1]
 
-    if not model_path.exists():
-        raise FileNotFoundError(f"No model found at: {model_path}")
-
-    return str(model_path), latest_run
-
+    return os.path.join(base_dir, latest)
 
 # --------------------------
-# RESOLVE PATHS
+# LOAD DATASET
 # --------------------------
-if args.model is None:
-    args.model, run_dir = get_latest_model()
-    print(f"\nAuto mode enabled")
-    print(f"Using run: {run_dir.name}")
-    print(f"Model: {args.model}\n")
+def load_dataset():
+    dataset = IonizationConeDataset2D(
+        image_dir=os.path.join(DATASET_PATH, "images"),
+        mask_dir=os.path.join(DATASET_PATH, "masks"),
+        normalize=False
+    )
 
-if args.data_img is None:
-    args.data_img = DEFAULT_IMG_DIR
+    loader = DataLoader(
+        dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False   # IMPORTANT: reproducibility
+    )
 
-if args.data_mask is None:
-    args.data_mask = DEFAULT_MASK_DIR
-
+    return dataset, loader
 
 # --------------------------
 # LOAD MODEL
 # --------------------------
-model = UNet(in_channels=1, out_channels=1).to(DEVICE)
-model.load_state_dict(torch.load(args.model, map_location=DEVICE))
-model.eval()
+def load_model(model_path):
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model not found: {model_path}")
 
+    model = UNet(in_channels=1, out_channels=1).to(DEVICE)
+    model.load_state_dict(torch.load(model_path, map_location=DEVICE))
+    model.eval()
 
-# --------------------------
-# LOAD DATA
-# --------------------------
-dataset = IonizationConeDataset2D(
-    image_dir=args.data_img,
-    mask_dir=args.data_mask
-)
-
-loader = DataLoader(dataset, batch_size=1, shuffle=True)
-
+    return model
 
 # --------------------------
-# OUTPUT DIR
+# VISUALIZATION
 # --------------------------
-os.makedirs(args.save_dir, exist_ok=True)
+@torch.no_grad()
+def visualize(model, dataset):
+    # fixed indices → consistent comparison across runs
+    indices = list(range(NUM_SAMPLES))
 
+    imgs = torch.stack([dataset[i][0] for i in indices]).to(DEVICE)
+    masks = torch.stack([dataset[i][1] for i in indices]).to(DEVICE)
 
-# --------------------------
-# VISUALIZATION LOOP
-# --------------------------
-count = 0
+    logits = model(imgs)
+    probs = torch.sigmoid(logits)
+    preds = (probs > 0.5).float()
 
-print("Running visualization...\n")
+    imgs = imgs.cpu()
+    masks = masks.cpu()
+    probs = probs.cpu()
+    preds = preds.cpu()
 
-with torch.no_grad():
-    for imgs, masks in loader:
-        imgs = imgs.to(DEVICE)
-        masks = masks.to(DEVICE)
+    for i in range(NUM_SAMPLES):
+        fig, axes = plt.subplots(1, 3, figsize=(12, 5))
 
-        preds = torch.sigmoid(model(imgs))
+        # Input
+        axes[0].imshow(imgs[i][0], cmap="gray")
+        axes[0].set_title("Input")
 
-        img = imgs[0].cpu().squeeze()
-        mask = masks[0].cpu().squeeze()
-        pred = (preds[0].cpu().squeeze() > 0.5).float()
-        error = torch.abs(pred - mask)
+        # Ground truth
+        axes[1].imshow(masks[i][0], cmap="gray")
+        axes[1].set_title("Ground Truth")
 
-        # --------------------------
-        # PLOT
-        # --------------------------
-        fig, axes = plt.subplots(1, 4, figsize=(12, 3))
-
-        axes[0].imshow(img, cmap="gray")
-        axes[0].set_title("Image")
-
-        axes[1].imshow(mask, cmap="gray")
-        axes[1].set_title("Mask")
-
-        axes[2].imshow(pred, cmap="gray")
-        axes[2].set_title("Prediction")
-
-        axes[3].imshow(error, cmap="hot")
-        axes[3].set_title("Error")
+        # Probability map (VERY useful)
+        im = axes[2].imshow(probs[i][0], cmap="viridis")
+        axes[2].set_title("Prediction (Probability)")
+        fig.colorbar(im, ax=axes[2], fraction=0.046)
 
         for ax in axes:
             ax.axis("off")
 
         plt.tight_layout()
-
-        save_path = os.path.join(args.save_dir, f"sample_{count:03d}.png")
-        plt.savefig(save_path)
+        plt.savefig(os.path.join(SAVE_DIR, f"sample_{i}.png"))
         plt.close()
 
-        print(f"Saved {save_path}")
+# --------------------------
+# MAIN
+# --------------------------
+def main():
+    print("\n--- VISUALIZATION SCRIPT ---\n")
 
-        count += 1
-        if count >= args.num_samples:
-            break
+    # find latest run
+    run_dir = get_latest_run(BASE_RESULTS_DIR)
+    model_path = os.path.join(run_dir, "models", "best.pth")
 
-print("\nDone.")
+    print(f"Using run: {run_dir}")
+    print(f"Model path: {model_path}")
+
+    # load model
+    print("\nLoading model...")
+    model = load_model(model_path)
+
+    # load dataset
+    print("Loading dataset...")
+    dataset, loader = load_dataset()
+
+    print(f"Dataset size: {len(dataset)} samples")
+
+    # visualize
+    print("\nGenerating visualizations...")
+    visualize(model, dataset)
+
+    print(f"\nSaved to: {SAVE_DIR}")
+    print("\nDone.\n")
+
+
+if __name__ == "__main__":
+    main()

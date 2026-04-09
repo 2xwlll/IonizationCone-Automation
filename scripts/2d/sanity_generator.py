@@ -4,22 +4,30 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 import shutil
+import argparse
+import json
 
 # ─────────────────────────────────────────────
-# CONFIG
+# CONFIG (CLI)
 # ─────────────────────────────────────────────
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--name", type=str, default="synthetic_bicone")
+args = parser.parse_args()
+
+BASE_DIR = Path("data/2d") / args.name
 
 GRID = 64
 N_SAMPLES = 200
 
-BASE_DIR = Path("data/sanity_bicone_clean")
-
 # ─────────────────────────────────────────────
-# RESET DATASET
+# RESET DATASET (SAFE)
 # ─────────────────────────────────────────────
 
 def reset():
     if BASE_DIR.exists():
+        assert "2d" in str(BASE_DIR), "Refusing to delete outside data/2d"
+        print(f"Resetting dataset at: {BASE_DIR}")
         shutil.rmtree(BASE_DIR)
 
     for split in ["train", "val", "test"]:
@@ -52,7 +60,28 @@ def cone(grid, axis_vec, opening_deg, radius):
     return (cosang >= np.cos(np.radians(opening_deg))) & (dist <= radius)
 
 # ─────────────────────────────────────────────
-# TRUNCATION (top/bottom cut only)
+# ORIENTATION SAMPLING (KEY CHANGE)
+# ─────────────────────────────────────────────
+
+def sample_theta():
+    mode = np.random.choice(
+        ["toward", "away", "edge", "uniform"],
+        p=[0.3, 0.3, 0.2, 0.2]
+    )
+
+    if mode == "toward":
+        u = np.random.uniform(0.3, 1.0)
+    elif mode == "away":
+        u = np.random.uniform(-1.0, -0.3)
+    elif mode == "edge":
+        u = np.random.uniform(-0.3, 0.3)
+    else:
+        u = np.random.uniform(-1.0, 1.0)
+
+    return np.degrees(np.arccos(u))
+
+# ─────────────────────────────────────────────
+# TRUNCATION
 # ─────────────────────────────────────────────
 
 def truncate(vol, p=0.2):
@@ -83,40 +112,30 @@ def maybe_blank():
     return np.random.random() < 0.1
 
 def make_sample():
-    # ⚫ blank case
+    # Blank case
     if maybe_blank():
         img = np.zeros((GRID, GRID), dtype=np.float32)
         mask = np.zeros((GRID, GRID), dtype=np.float32)
         return img, mask
 
-    # geometry params
     r = GRID // 2 - 2
     opening = 25
 
     phi = np.random.uniform(0, 360)
+    theta = sample_theta()
 
-    # FIXED orientation sampling (no front bias)
-    u = np.random.uniform(-1, 1)
-    theta = np.degrees(np.arccos(u))
-
-    # bicone construction
     ax1 = axis(phi, theta)
-    ax2 = axis(phi + np.random.uniform(150, 210),
-               180 - theta)
+    ax2 = -ax1  # clean opposite cone
 
     v1 = cone(GRID, ax1, opening, r)
     v2 = cone(GRID, ax2, opening, r)
 
     vol = v1 | v2
-
-    # truncation (real-world asymmetry)
     vol = truncate(vol, p=0.2)
 
-    # projection (input image)
     image = project(vol)
     image = image / (image.max() + 1e-8)
 
-    # CLEAN MASK (IMPORTANT FIX)
     mask = project(vol).astype(np.float32)
     mask = (mask > 0).astype(np.float32)
 
@@ -142,16 +161,30 @@ def save(samples):
 
 def viz(samples):
     plt.figure(figsize=(8, 8))
-
     for i in range(9):
-        img, mask = samples[i]
-
+        img, _ = samples[i]
         plt.subplot(3, 3, i + 1)
         plt.imshow(img, cmap="inferno")
         plt.axis("off")
-
     plt.tight_layout()
     plt.show()
+
+# ─────────────────────────────────────────────
+# METADATA
+# ─────────────────────────────────────────────
+
+def save_metadata():
+    meta = {
+        "grid": GRID,
+        "n_samples": N_SAMPLES,
+        "blank_fraction": 0.1,
+        "truncation_prob": 0.2,
+        "orientation_modes": ["toward", "away", "edge", "uniform"],
+        "description": "Sanity-check synthetic bicone dataset with orientation diversity"
+    }
+
+    with open(BASE_DIR / "metadata.json", "w") as f:
+        json.dump(meta, f, indent=2)
 
 # ─────────────────────────────────────────────
 # RUN
@@ -162,5 +195,6 @@ if __name__ == "__main__":
     samples = generate()
     viz(samples)
     save(samples)
+    save_metadata()
 
-    print("DONE — clean bicones dataset ready for UNet training")
+    print(f"\nDONE — dataset ready at: {BASE_DIR}\n")

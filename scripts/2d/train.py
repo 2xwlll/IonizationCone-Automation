@@ -1,71 +1,84 @@
 #!/usr/bin/env python3
+
 import os
 import datetime
-# Me trying to be organized on training lol
-
-RUN_NAME = datetime.datetime.now().strftime("run_%Y%m%d_%H%M%S")
-
-BASE_RESULTS_DIR = os.path.join("results", "2d", "unet", RUN_NAME)
-
-MODEL_DIR = os.path.join(BASE_RESULTS_DIR, "models")
-PLOT_DIR  = os.path.join(BASE_RESULTS_DIR, "plots")
-SAMPLE_DIR = os.path.join(BASE_RESULTS_DIR, "samples")
-
-# Actual training imports
 import torch
+import torch.nn as nn
 from torch import optim
-from torch.utils.data import DataLoader, ConcatDataset, random_split
+from torch.utils.data import DataLoader
 from torch.cuda.amp import autocast, GradScaler
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import numpy as np
 import random
+import difflib
 
 from src.machine_learning.datasets.ionization_dataset import IonizationConeDataset2D
 from src.machine_learning.models.model_2d import UNet
 from src.machine_learning.losses.combined_BCE_Dice import BCEDiceLoss
 
+# --------------------------
+# RUN DIRS
+# --------------------------
+RUN_NAME = datetime.datetime.now().strftime("run_%Y%m%d_%H%M%S")
+
+BASE_RESULTS_DIR = os.path.join("results", "2d", "unet", RUN_NAME)
+MODEL_DIR = os.path.join(BASE_RESULTS_DIR, "models")
+PLOT_DIR = os.path.join(BASE_RESULTS_DIR, "plots")
+SAMPLE_DIR = os.path.join(BASE_RESULTS_DIR, "samples")
+
+os.makedirs(MODEL_DIR, exist_ok=True)
+os.makedirs(PLOT_DIR, exist_ok=True)
+os.makedirs(SAMPLE_DIR, exist_ok=True)
 
 # --------------------------
 # CONFIG
 # --------------------------
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-DATASETS = {
-    "synthetic_train": (
-        "data/2d/derived_from_cubes/synthetic/processed/norm_v1/train/images",
-        "data/2d/derived_from_cubes/synthetic/processed/norm_v1/train/masks"
-    ),
-    "synthetic_val": (
-        "data/2d/derived_from_cubes/synthetic/processed/norm_v1/val/images",
-        "data/2d/derived_from_cubes/synthetic/processed/norm_v1/val/masks"
-    )
+DATASET_CONFIG = {
+    "root": "data/2d",
+    "name_hint": "synthetic_bicone",
+    "cutoff": 0.5  # fuzziness knob
 }
 
-MODEL_SAVE_PATH = os.path.join(MODEL_DIR, "best.pth")
-CHECKPOINT_PATH = os.path.join(MODEL_DIR, "checkpoint.pth")
-
 BATCH_SIZE = 2
-EPOCHS = 200
+EPOCHS = 10
 LR = 1e-3
-VAL_SPLIT = 0.1
 SEED = 42
-
-REAL_WEIGHT = 1.0
-SYN_WEIGHT = 1.0
 
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 random.seed(SEED)
 
+# --------------------------
+# FUZZY DATASET RESOLVER
+# --------------------------
+def fuzzy_find_dataset(root, hint, cutoff=0.5):
+    if not os.path.exists(root):
+        raise FileNotFoundError(f"Dataset root not found: {root}")
+
+    candidates = [
+        d for d in os.listdir(root)
+        if os.path.isdir(os.path.join(root, d))
+    ]
+
+    matches = difflib.get_close_matches(hint, candidates, n=1, cutoff=cutoff)
+
+    if not matches:
+        raise ValueError(
+            f"No dataset match for '{hint}' in {root}\n"
+            f"Available datasets: {candidates}"
+        )
+
+    return matches[0]
 
 # --------------------------
-# REPRODUCIBILITY HELPERS
+# REPRODUCIBILITY
 # --------------------------
 def worker_init_fn(worker_id):
     np.random.seed(SEED + worker_id)
     random.seed(SEED + worker_id)
-
 
 # --------------------------
 # METRICS
@@ -82,23 +95,33 @@ def dice_coefficient(preds, targets, eps=1e-6):
 
     return torch.stack(dice_per_sample).mean()
 
-
 # --------------------------
-# DATA LOADING (NO LEAKAGE SPLIT)
+# DATA LOADING
 # --------------------------
 def load_dataset(path_img, path_mask):
-    return IonizationConeDataset2D(image_dir=path_img, mask_dir=path_mask)
-
-
-def split_dataset(dataset, val_split):
-    val_size = int(len(dataset) * val_split)
-    train_size = len(dataset) - val_size
-    return random_split(dataset, [train_size, val_size])
-
+    return IonizationConeDataset2D(
+        image_dir=path_img,
+        mask_dir=path_mask,
+        normalize=False
+    )
 
 def build_loaders():
-    train_set = load_dataset(*DATASETS["synthetic_train"])
-    val_set   = load_dataset(*DATASETS["synthetic_val"])
+    root = DATASET_CONFIG["root"]
+    hint = DATASET_CONFIG["name_hint"]
+    cutoff = DATASET_CONFIG["cutoff"]
+
+    dataset_name = fuzzy_find_dataset(root, hint, cutoff)
+    base_path = os.path.join(root, dataset_name)
+
+    train_set = load_dataset(
+        os.path.join(base_path, "train/images"),
+        os.path.join(base_path, "train/masks")
+    )
+
+    val_set = load_dataset(
+        os.path.join(base_path, "val/images"),
+        os.path.join(base_path, "val/masks")
+    )
 
     train_loader = DataLoader(
         train_set,
@@ -113,12 +136,16 @@ def build_loaders():
         shuffle=False
     )
 
-    return train_loader, val_loader, len(train_set), len(val_set)
+    print(f"\nUsing dataset: {dataset_name} (hint='{hint}')\n")
 
+    return train_loader, val_loader, len(train_set), len(val_set)
 
 # --------------------------
 # CHECKPOINTING
 # --------------------------
+MODEL_SAVE_PATH = os.path.join(MODEL_DIR, "best.pth")
+CHECKPOINT_PATH = os.path.join(MODEL_DIR, "checkpoint.pth")
+
 def save_checkpoint(model, optimizer, scaler, epoch, best_val_loss):
     torch.save({
         "model": model.state_dict(),
@@ -127,7 +154,6 @@ def save_checkpoint(model, optimizer, scaler, epoch, best_val_loss):
         "epoch": epoch,
         "best_val_loss": best_val_loss
     }, CHECKPOINT_PATH)
-
 
 def load_checkpoint(model, optimizer, scaler):
     if not os.path.exists(CHECKPOINT_PATH):
@@ -140,7 +166,6 @@ def load_checkpoint(model, optimizer, scaler):
 
     return ckpt["epoch"], ckpt["best_val_loss"]
 
-
 # --------------------------
 # TRAIN / EVAL
 # --------------------------
@@ -148,18 +173,17 @@ def train_one_epoch(model, loader, optimizer, loss_fn, scaler):
     model.train()
     total_loss = 0
 
+    from contextlib import nullcontext
+    amp_context = autocast if DEVICE == "cuda" else nullcontext
+
     for imgs, masks in tqdm(loader, leave=False):
         imgs, masks = imgs.to(DEVICE), masks.to(DEVICE)
 
         optimizer.zero_grad()
 
-    from contextlib import nullcontext
-
-    amp_context = autocast if DEVICE == "cuda" else nullcontext
-
-    with amp_context():
-        preds = model(imgs)
-        loss = loss_fn(preds, masks)
+        with amp_context():
+            preds = model(imgs)
+            loss = loss_fn(preds, masks)
 
         scaler.scale(loss).backward()
         scaler.step(optimizer)
@@ -168,7 +192,6 @@ def train_one_epoch(model, loader, optimizer, loss_fn, scaler):
         total_loss += loss.item()
 
     return total_loss / len(loader)
-
 
 @torch.no_grad()
 def evaluate(model, loader, loss_fn):
@@ -188,30 +211,24 @@ def evaluate(model, loader, loss_fn):
 
     return total_loss / len(loader), total_dice / len(loader)
 
-
 # --------------------------
 # MAIN
 # --------------------------
 def main():
-    os.makedirs(MODEL_DIR, exist_ok=True)
-    os.makedirs(PLOT_DIR, exist_ok=True)
-    os.makedirs(SAMPLE_DIR, exist_ok=True)
-    #Now train
     train_loader, val_loader, n_train, n_val = build_loaders()
 
-    print(f"\nTrain samples: {n_train} | Val samples: {n_val}")
+    print(f"Train: {n_train} | Val: {n_val}")
+
+    #DEBUG HERE (early, before training)
+    imgs, masks = next(iter(train_loader))
+    print("IMG min/max:", imgs.min().item(), imgs.max().item())
+    print("MASK unique:", torch.unique(masks))
 
     model = UNet(in_channels=1, out_channels=1).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=LR)
     scaler = GradScaler()
 
-    loss_fn = BCEDiceLoss( # do absolutely nothing right now
-        bce_weight=1.0,
-        dice_weight=3.0,
-        pos_weight=20.0
-    ).to(DEVICE)
-
-    os.makedirs("results", exist_ok=True)
+    loss_fn = nn.BCEWithLogitsLoss()
 
     start_epoch, best_val_loss = load_checkpoint(model, optimizer, scaler)
 
@@ -228,9 +245,9 @@ def main():
 
         print(
             f"Epoch {epoch+1}/{EPOCHS} | "
-            f"Train: {train_loss:.4f} | "
-            f"Val: {val_loss:.4f} | "
-            f"Dice: {val_dice:.4f}"
+            f"Train {train_loss:.4f} | "
+            f"Val {val_loss:.4f} | "
+            f"Dice {val_dice:.4f}"
         )
 
         if val_loss < best_val_loss:
@@ -238,7 +255,6 @@ def main():
             torch.save(model.state_dict(), MODEL_SAVE_PATH)
 
         save_checkpoint(model, optimizer, scaler, epoch, best_val_loss)
-
 
     # --------------------------
     # PLOT
@@ -251,8 +267,10 @@ def main():
     plt.savefig(os.path.join(PLOT_DIR, "training_curves.png"))
     plt.close()
 
-    print("\nDone. Saved model + curves.")
-    print(f"\nSaving results to: {BASE_RESULTS_DIR}\n")
+    print("\nDone.")
+    print(f"Saved to: {BASE_RESULTS_DIR}")
+    imgs, masks = next(iter(train_loader))
+    print(imgs.min().item(), imgs.max().item())
 
 if __name__ == "__main__":
     main()
