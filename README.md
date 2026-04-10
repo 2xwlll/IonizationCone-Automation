@@ -49,7 +49,7 @@ Everything else is part of the main IonizationCone-Automization project and unde
 ---
 
 ## Project Structure
-```Bash```
+```Bash
 IonizationCone-Automization/
 ├── config.py
 ├── data/
@@ -118,7 +118,7 @@ IonizationCone-Automization/
 ├── requirements.txt
 ├── README.md
 └── pyproject.toml
-``````
+```
 
 ---
 

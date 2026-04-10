@@ -1,51 +1,75 @@
-# ------------------
-# Data (local only)
-# ------------------
-data/
-!data/.gitkeep
-
-# ------------------
-# Virtual environments
-# ------------------
-venv/
-.env/
-.envrc/
-
-# ------------------
-# Archive
-# ------------------
-archive/
-
-# ------------------
-# Model artifacts
-# ------------------
-*.pth
-*.ckpt
-
-# ------------------
-# Python junk
-# ------------------
+# =========================
+# Python
+# =========================
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
 
-# ------------------
-# Jupyter
-# ------------------
+# =========================
+# Virtual environments
+# =========================
+venv/
+.env/
+.envrc/
+.venv/
+
+# =========================
+# Jupyter notebooks
+# =========================
 .ipynb_checkpoints/
 
-# ------------------
+# =========================
 # OS / editor junk
-# ------------------
+# =========================
 .DS_Store
 *.swp
 *.swo
+*.tmp
 nvim.log
 
-# ------------------
-# Optional: large results (keep plots only)
-# ------------------
-results/**/*.fits
+# =========================
+# Data (keep local only)
+# =========================
+data/
+!data/.gitkeep
+
+# =========================
+# Model checkpoints / weights
+# =========================
+*.pth
+*.pt
+*.ckpt
+
+# =========================
+# Experiment outputs / results
+# (keep only plots if desired)
+# =========================
+results/**/*.pth
+results/**/*.pt
+results/**/*.ckpt
 results/**/*.npy
-venv/
+results/**/*.fits
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# Archive / legacy code
+# =========================
+archive/
+
+# =========================
+# IDE / tooling
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# Misc ML / training artifacts
+# =========================
+wandb/
+lightning_logs/
+mlruns/
