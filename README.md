@@ -1,4 +1,4 @@
-### IonizationCone-Automization
+# IonizationCone-Automization
 
 Automated machine learning pipeline for detecting and segmenting ionization cones in active galactic nuclei (AGN) using 2D [O III] emission maps.
 
@@ -16,7 +16,7 @@ Generate qualitative visualizations of predictions for analysis
 
 ## Methodology
 
-# The pipeline consists of the following stages:
+### The pipeline consists of the following stages:
 
 FITS / Synthetic Data
 → preprocessing (scripts/) (no current preprocessing needed right now)
@@ -29,7 +29,7 @@ Synthetic data generation is used to provide controlled geometries for initial m
 
 ## Functionality
 
-# The system supports:
+### The system supports:
 
 Training of a 2D U-Net segmentation model on AGN emission maps
 Binary segmentation of ionization cone regions
@@ -38,19 +38,19 @@ Visualization of predictions and training performance
 Evaluation using metrics such as Dice coefficient and IoU
 Results
 
-# Model outputs include:
+### Model outputs include:
 
 Segmentation masks of ionization cones
 Training and validation loss curves
 Qualitative prediction overlays comparing input maps and model outputs
 
-# Representative outputs are stored in:
+### Representative outputs are stored in:
 
 results/visualizations/
 results/training_curves.png
 results/sample_cones.png
 
-## Repository Structure
+### Repository Structure
 
 ```bash
 IonizationCone-Automization/
