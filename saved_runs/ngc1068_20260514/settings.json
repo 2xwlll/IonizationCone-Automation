@@ -1,0 +1,76 @@
+{
+  "provenance": "Current source settings captured 2026-09-10; historical execution not independently verified. Source copies preserve inline settings too.",
+  "scripts": {
+    "two_component_continuum.py": {
+      "O3_FILE": "data/2d/MAST_2026-04-14T0111/HST/hst_5754_01_wfpc2_pc_f502n_u2m301/hst_5754_01_wfpc2_pc_f502n_u2m301_drz.fits",
+      "CONT_FILE": "data/2d/MAST_continuum/mastDownload/HST/hst_5754_01_wfpc2_pc_f547m_u2m301/hst_5754_01_wfpc2_pc_f547m_u2m301_drz.fits",
+      "OUT_DIR": {
+        "expression": "Path('data/2d/ngc1068_two_component')"
+      },
+      "PHOTFLAM_502": 2.943716e-16,
+      "PHOTFLAM_547": 7.595041e-18,
+      "PHOTFLAM_RATIO": {
+        "expression": "PHOTFLAM_547 / PHOTFLAM_502"
+      },
+      "R_MIN": 15,
+      "R_MAX": 110,
+      "N_R_BINS": 40,
+      "N_THETA_BINS": 360,
+      "ANGULAR_SMOOTH": 7,
+      "EDGE_THRESHOLD": 0.2,
+      "MIN_CONE_WIDTH": 20,
+      "MASK_SNR_CUT": 2.5,
+      "CROP": 400,
+      "PSF_MATCH_SIGMA": 0.5
+    },
+    "predict_real.py": {
+      "DEVICE": {
+        "expression": "'cuda' if torch.cuda.is_available() else 'cpu'"
+      },
+      "BASE_RESULTS": "results/2d/unet",
+      "EMISSION_PATH": "data/2d/ngc1068_two_component/emission_map_asinh.npy",
+      "SOFT_MASK_PATH": "data/2d/ngc1068_two_component/soft_mask.npy",
+      "PARAMS_PATH": "data/2d/ngc1068_two_component/cone_params.json",
+      "SAVE_DIR": "results/visualizations",
+      "GRID": 128,
+      "THRESHOLD": 0.5,
+      "NUCLEUS_CROP": 110
+    },
+    "train.py": {
+      "RUN_NAME": {
+        "expression": "datetime.datetime.now().strftime('run_%Y%m%d_%H%M%S')"
+      },
+      "BASE_RESULTS_DIR": {
+        "expression": "os.path.join('results', '2d', 'unet', RUN_NAME)"
+      },
+      "MODEL_DIR": {
+        "expression": "os.path.join(BASE_RESULTS_DIR, 'models')"
+      },
+      "PLOT_DIR": {
+        "expression": "os.path.join(BASE_RESULTS_DIR, 'plots')"
+      },
+      "SAMPLE_DIR": {
+        "expression": "os.path.join(BASE_RESULTS_DIR, 'samples')"
+      },
+      "DEVICE": {
+        "expression": "'cuda' if torch.cuda.is_available() else 'cpu'"
+      },
+      "DATASET_CONFIG": {
+        "root": "data/2d",
+        "name_hint": "synthetic_oiii_realistic",
+        "cutoff": 0.5
+      },
+      "BATCH_SIZE": 8,
+      "EPOCHS": 30,
+      "LR": 0.0001,
+      "POS_WEIGHT": 20.0,
+      "SEED": 42,
+      "MODEL_SAVE_PATH": {
+        "expression": "os.path.join(MODEL_DIR, 'best.pth')"
+      },
+      "CHECKPOINT_PATH": {
+        "expression": "os.path.join(MODEL_DIR, 'checkpoint.pth')"
+      }
+    }
+  }
+}

@@ -4,6 +4,9 @@ Automated machine learning pipeline for detecting and segmenting ionization cone
 
 ## Overview
 
+Saved NGC 1068 parameters, source settings, previews, and local data links are in
+[saved_runs/ngc1068_20260514](saved_runs/ngc1068_20260514/README.md).
+
 Ionization cones are anisotropic emission structures associated with active galactic nuclei and trace the geometry and orientation of the narrow-line region. They provide insight into radiation escape, AGN feedback, and host galaxy interaction.
 
 Manual identification of these structures is time-consuming and subjective. This project implements a machine learning pipeline to automate segmentation of ionization cones from imaging data.

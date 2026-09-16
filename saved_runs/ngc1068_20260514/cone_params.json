@@ -1,0 +1,20 @@
+{
+  "cone_axis_deg": 132.5,
+  "opening_half_deg": 39.0,
+  "opening_full_deg": 78.0,
+  "counter_axis_deg": -47.5,
+  "asymmetry": 0.3,
+  "method": "polar_angular_support",
+  "edge_threshold": 0.2,
+  "r_min_px": 15,
+  "r_max_px": 110,
+  "mask_snr_cut": 2.5,
+  "angular_smooth_bins": 7,
+  "scale_factor": 0.030811479315161705,
+  "photflam_ratio": 0.025800861903797784,
+  "residual_correction": 1.194203495979309,
+  "noise_sigma": 0.0014923131093382835,
+  "cone_mask_pixels": 6806,
+  "nucleus_cx": 200,
+  "nucleus_cy": 200
+}

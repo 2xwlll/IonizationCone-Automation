@@ -1,0 +1,18 @@
+{
+  "grid": 128,
+  "samples": 1000,
+  "model": "nucleus + (halo*boost * fractal_density) + dust + PSF + nlr_texture(blended) + grain + stars + disk",
+  "radial_peak": "Gaussian at r_peak (0.35-0.60 * r_max)",
+  "warp": "axis drifts 0-8 deg",
+  "inclination": "foreshortening drives lobe asymmetry",
+  "bicone": "40% bicone, counter-lobe 0.1-0.3x primary",
+  "density_field": "multiplicative fractal (beta 1.6-2.2, gamma 0.6-0.8) \u2014 soft ISM modulation, gradual transitions",
+  "mask": "ragged wedge \u2014 angular + radial fractal perturbation (strength 0.20-0.45 angular, 0.15-0.35 radial) \u2014 lumpy spiky boundary follows gas not geometry",
+  "nlr_texture": "fractal(0.5) + knots(1.0) + filaments(0.7), blended 60/40 with sigma=2.5 smooth",
+  "post_blur_grain": "fine fractal (beta=1.2) weighted by emission \u2014 re-introduces surface roughness after PSF",
+  "stellar_field": "Poisson(lam=18) stars, sigma 0.4-1.2px, 90% samples",
+  "dust": "clumpy absorption before PSF, depth 0.2-0.5",
+  "host_disk": "after PSF, 70% samples",
+  "noise": "Poisson-like shot noise sqrt(signal)",
+  "opening_range": "15-55 degrees"
+}

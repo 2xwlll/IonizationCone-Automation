@@ -1,0 +1,245 @@
+{
+  "captured_on": "2026-09-10",
+  "git_head": "ec8983227ded40da08189f9c5f135ad3192d65cc",
+  "source_status": "Working tree has uncommitted changes; copied source bytes are authoritative for this snapshot.",
+  "historical_model_run": null,
+  "model_note": "Original prediction did not record checkpoint identity. Both available best checkpoints are linked as candidates; latest-run selection currently chooses run_20260513_064046.",
+  "copied_files": [
+    {
+      "path": "data/2d/ngc1068_two_component/cone_params.json",
+      "size_bytes": 519,
+      "sha256": "9bafbcd418b2486a91a18e132ea8f44869579f78bd7ec6650f114f268cffbc1e",
+      "snapshot": "cone_params.json"
+    },
+    {
+      "path": "results/visualizations/ngc1068_prediction_params.json",
+      "size_bytes": 372,
+      "sha256": "f5bd2e21049468b0fb7b7b08eef3999f19bff191becf376d652b0e89955f5c19",
+      "snapshot": "prediction_params.json"
+    },
+    {
+      "path": "scripts/2d/two_component_continuum.py",
+      "size_bytes": 24713,
+      "sha256": "7b6c25fa60182ed4fefadee10f0a18851ff9ffb14c1eb446e1cf864e364e6db2",
+      "snapshot": "source/two_component_continuum.py"
+    },
+    {
+      "path": "scripts/2d/predict_real.py",
+      "size_bytes": 14179,
+      "sha256": "76e32da1edca9e99634351ed328b0d6dd6ebcdaf6afa5166d8625a735aaa0a93",
+      "snapshot": "source/predict_real.py"
+    },
+    {
+      "path": "scripts/2d/train.py",
+      "size_bytes": 7956,
+      "sha256": "a60a145c74f06d25f80c646dd3b704be4b84e7d6f9de15c0464553303f7f0f39",
+      "snapshot": "source/train.py"
+    },
+    {
+      "path": "src/machine_learning/models/model_2d.py",
+      "size_bytes": 2502,
+      "sha256": "9c6f7f6186a4373f5ec4ddf95e8792c59364bff44a770d2f4f0b4dbf2bb36a67",
+      "snapshot": "source/model_2d.py"
+    },
+    {
+      "path": "src/machine_learning/losses/combined_BCE_Dice.py",
+      "size_bytes": 1237,
+      "sha256": "a772295a4208619e359b67f05e0c7aadb10fc54c0f67dcf6785bdba6a3ca033d",
+      "snapshot": "source/combined_BCE_Dice.py"
+    },
+    {
+      "path": "src/machine_learning/datasets/ionization_dataset.py",
+      "size_bytes": 2654,
+      "sha256": "5bb3e687823f8fc7d8ac91114eae5b82a43dd319c5a31d8975e003ef570dfb41",
+      "snapshot": "source/ionization_dataset.py"
+    },
+    {
+      "path": "data/2d/synthetic_oiii_realistic/metadata.json",
+      "size_bytes": 1127,
+      "sha256": "34fcb2c60ff421a9cef07018a57a573fa6e6d2a8cb65c1e84027a3a7c899374e",
+      "snapshot": "training_dataset_metadata.json"
+    },
+    {
+      "path": "results/visualizations/ngc1068_prediction.png",
+      "size_bytes": 165427,
+      "sha256": "bd575258872ccca8583bb6960dc64afb420c2d060e636fbd11c0dbeea1c9cae0",
+      "snapshot": "prediction.png"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/two_component_result.png",
+      "size_bytes": 1635321,
+      "sha256": "799e3f1e33b04b50dbbff6ee5e720182838815dc2be53681cc6d5be15fe9bb74",
+      "snapshot": "two_component_result.png"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/polar_diagnostic.png",
+      "size_bytes": 373132,
+      "sha256": "45f0d8b749edcefa585f7f1b6ebcf8756ba628cee7ea4ba3a060119a85def92c",
+      "snapshot": "polar_diagnostic.png"
+    }
+  ],
+  "linked_files": [
+    {
+      "path": "data/2d/ngc1068_two_component/angular_profile.npy",
+      "size_bytes": 1568,
+      "sha256": "93dc16a35743f3bebbff2176727ffc3cf1a490cd1ccd5350fe50bf5337c07995",
+      "link": "data_links/angular_profile.npy"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/bicone_model.fits",
+      "size_bytes": 645120,
+      "sha256": "acd081f50e7f9d3309bdc3ba0e9d5441d0f797de918449ef0831c4dd12e7eb7e",
+      "link": "data_links/bicone_model.fits"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/bicone_model.npy",
+      "size_bytes": 640128,
+      "sha256": "3e9fa2f087c6e21a803e00481f32e9977a7487951dd8efa38a9c7fb2f130fbb1",
+      "link": "data_links/bicone_model.npy"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/cone_mask.fits",
+      "size_bytes": 645120,
+      "sha256": "82ee5fe3fd76b74b673d174644bd97b8feb7e4662790bdbdd0853f96a9cf7a8f",
+      "link": "data_links/cone_mask.fits"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/cone_mask.npy",
+      "size_bytes": 640128,
+      "sha256": "1053a47b9aa6c126350de9506c80261a45a6aa01914417c767196c4af2d3d7ee",
+      "link": "data_links/cone_mask.npy"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/cont_crop.npy",
+      "size_bytes": 640128,
+      "sha256": "897d325861eedc3f132438ad66f0cd3478f996c01d802d4784710c1b693fa71b",
+      "link": "data_links/cont_crop.npy"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/cont_scaled.fits",
+      "size_bytes": 645120,
+      "sha256": "d490dd8b139b1bda680471d16a105c4c93643ef80ebc85820af6a085eef9a938",
+      "link": "data_links/cont_scaled.fits"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/cont_scaled.npy",
+      "size_bytes": 640128,
+      "sha256": "baf24c21d2eb0a748111fd27d01a419a4e8ad16f12e4f490daea2884d30219b4",
+      "link": "data_links/cont_scaled.npy"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/emission.npy",
+      "size_bytes": 640128,
+      "sha256": "b2dbabc1b2abfca053cd3bf53b7ab4d7e4c863597623bcac3d0c837dd62047e3",
+      "link": "data_links/emission.npy"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/emission_map.fits",
+      "size_bytes": 645120,
+      "sha256": "e26383b540ed9f51e47d6de9e023331fee6ceba63f24a698d779de443932a319",
+      "link": "data_links/emission_map.fits"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/emission_map.npy",
+      "size_bytes": 640128,
+      "sha256": "36b38721d7c75c6efaa6ed0577fc1f76ed691396859aa45454b814f83302d917",
+      "link": "data_links/emission_map.npy"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/emission_map_asinh.npy",
+      "size_bytes": 640128,
+      "sha256": "843f4a78d494e723c4fb35b16e55a96db43f1df74be41d91082ba4b082973993",
+      "link": "data_links/emission_map_asinh.npy"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/model_full.npy",
+      "size_bytes": 1280128,
+      "sha256": "aa985dbe4b665a7b870f071a2b28525931afb85fe4a11f29525631abb3f4730a",
+      "link": "data_links/model_full.npy"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/o3_crop.npy",
+      "size_bytes": 640128,
+      "sha256": "a95acaa4a92bf126518183a611b4dbfbabefb4503cf2a128c38971add0b866c2",
+      "link": "data_links/o3_crop.npy"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/params.npy",
+      "size_bytes": 248,
+      "sha256": "5a2db17b75e8bf40798cdabd32cbc167c49ca4a749c39a77ee46836aeb6a39de",
+      "link": "data_links/params.npy"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/polar_snr.npy",
+      "size_bytes": 57728,
+      "sha256": "457357bbda2090e23c6e0239820179de5f61466e0ea19faf8681548dea82c5d7",
+      "link": "data_links/polar_snr.npy"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/residual.npy",
+      "size_bytes": 1280128,
+      "sha256": "117f948d4d358ce48d57b5416c497d3d059c8b7508bf332f3d84d65ec2bc4a2c",
+      "link": "data_links/residual.npy"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/residual_map.npy",
+      "size_bytes": 640128,
+      "sha256": "ef3a4e7f78531513b9eb9f498f2db58394f03116c97bb77974595440d606adfb",
+      "link": "data_links/residual_map.npy"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/smooth_model.fits",
+      "size_bytes": 645120,
+      "sha256": "c4b48317162f6e21bf1bce694312ce8633e73a97c99a887dc6de8fe6797b4f1b",
+      "link": "data_links/smooth_model.fits"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/smooth_model.npy",
+      "size_bytes": 640128,
+      "sha256": "54cd312f17baad74f666da65154cf4df53cabd19361e721aea22756d2b9ec885",
+      "link": "data_links/smooth_model.npy"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/snr_map.npy",
+      "size_bytes": 640128,
+      "sha256": "6eb82eb9bdeda20df0ceb6466476f4ebc73b4b30609e6a270d384de41cca2728",
+      "link": "data_links/snr_map.npy"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/soft_mask.fits",
+      "size_bytes": 645120,
+      "sha256": "98aea726b605d259a9c73a6f858d784f5dfb6b28e09c0ae983c798879948c76c",
+      "link": "data_links/soft_mask.fits"
+    },
+    {
+      "path": "data/2d/ngc1068_two_component/soft_mask.npy",
+      "size_bytes": 640128,
+      "sha256": "8465df44ae1b40943d0dbd515c42308ca77c1b2524dfaceb119b73c3cb8ac7af",
+      "link": "data_links/soft_mask.npy"
+    },
+    {
+      "path": "data/2d/MAST_2026-04-14T0111/HST/hst_5754_01_wfpc2_pc_f502n_u2m301/hst_5754_01_wfpc2_pc_f502n_u2m301_drz.fits",
+      "size_bytes": 228548160,
+      "sha256": "59dab83802a8cfcc4f71603b551b2484c529cd5779d2b14c2c5e1e0ed2320d5c",
+      "link": "data_links/o3_file.fits"
+    },
+    {
+      "path": "data/2d/MAST_continuum/mastDownload/HST/hst_5754_01_wfpc2_pc_f547m_u2m301/hst_5754_01_wfpc2_pc_f547m_u2m301_drz.fits",
+      "size_bytes": 228551040,
+      "sha256": "fecc4d50cf84dac89547278152f3487af86020865d733e46a2f42518af509af0",
+      "link": "data_links/cont_file.fits"
+    },
+    {
+      "path": "results/2d/unet/run_20260512_154247/models/best.pth",
+      "size_bytes": 124253637,
+      "sha256": "b1e206c03ff6ac5c15dff72b825dfebea9e6cf6c4a71e02ead1e45154d7e4ea4",
+      "link": "data_links/run_20260512_154247_best.pth.link"
+    },
+    {
+      "path": "results/2d/unet/run_20260513_064046/models/best.pth",
+      "size_bytes": 124253637,
+      "sha256": "241db0d946f280363d1cc16f6c0bd28574b992ee5672812f10897b9c8d343f21",
+      "link": "data_links/run_20260513_064046_best.pth.link"
+    }
+  ]
+}

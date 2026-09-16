@@ -7,36 +7,39 @@ import shutil
 import argparse
 import json
 
-# ─────────────────────────────────────────────
-# CONFIG (CLI)
-# ─────────────────────────────────────────────
+# =========================================================
+# CONFIG
+# =========================================================
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--name", type=str, default="synthetic_bicone")
+parser.add_argument("--name", type=str, default="synthetic_oiii_realistic")
 args = parser.parse_args()
 
 BASE_DIR = Path("data/2d") / args.name
 
-GRID = 64
-N_SAMPLES = 200
+GRID = 128
+N_SAMPLES = 1000
 
-# ─────────────────────────────────────────────
-# RESET DATASET (SAFE)
-# ─────────────────────────────────────────────
+TRAIN_SPLIT = 0.8
+VAL_SPLIT = 0.1
+
+# =========================================================
+# RESET DATASET
+# =========================================================
 
 def reset():
     if BASE_DIR.exists():
-        assert "2d" in str(BASE_DIR), "Refusing to delete outside data/2d"
-        print(f"Resetting dataset at: {BASE_DIR}")
+        assert "2d" in str(BASE_DIR)
+        print(f"Resetting dataset: {BASE_DIR}")
         shutil.rmtree(BASE_DIR)
 
     for split in ["train", "val", "test"]:
         (BASE_DIR / split / "images").mkdir(parents=True, exist_ok=True)
         (BASE_DIR / split / "masks").mkdir(parents=True, exist_ok=True)
 
-# ─────────────────────────────────────────────
-# GEOMETRY
-# ─────────────────────────────────────────────
+# =========================================================
+# GEOMETRY HELPERS
+# =========================================================
 
 def axis(phi, theta):
     phi = np.radians(phi)
@@ -47,154 +50,188 @@ def axis(phi, theta):
         np.cos(theta)
     ], dtype=np.float32)
 
-def cone(grid, axis_vec, opening_deg, radius):
+def pixel_vectors(grid):
     c = grid // 2
-    z, y, x = np.mgrid[0:grid, 0:grid, 0:grid]
+    y, x = np.mgrid[0:grid, 0:grid]
+    z = np.full_like(x, c)
 
-    v = np.stack([x - c, y - c, z - c], axis=-1)
-    dist = np.linalg.norm(v, axis=-1) + 1e-8
-    v_unit = v / dist[..., None]
+    v = np.stack([x - c, y - c, z], axis=-1)
+    norm = np.linalg.norm(v, axis=-1) + 1e-8
+    return v / norm[..., None]
 
-    cosang = np.sum(v_unit * axis_vec, axis=-1)
+# =========================================================
+# PHYSICAL EMISSION MODEL (CORE IDEA)
+# =========================================================
 
-    return (cosang >= np.cos(np.radians(opening_deg))) & (dist <= radius)
+def cone_illumination(v_dir, axis_vec, opening_angle):
+    cosang = np.sum(v_dir * axis_vec, axis=-1)
+    angle = np.arccos(np.clip(cosang, -1, 1))
 
-# ─────────────────────────────────────────────
-# ORIENTATION SAMPLING (KEY CHANGE)
-# ─────────────────────────────────────────────
+    # soft cone, NOT binary
+    return np.exp(-(angle / np.radians(opening_angle))**2)
 
-def sample_theta():
-    mode = np.random.choice(
-        ["toward", "away", "edge", "uniform"],
-        p=[0.3, 0.3, 0.2, 0.2]
-    )
+def radial_decay(shape, r0=None):
+    grid = shape[0]
+    c = grid // 2
+    y, x = np.mgrid[0:grid, 0:grid]
+    r = np.sqrt((x - c)**2 + (y - c)**2)
 
-    if mode == "toward":
-        u = np.random.uniform(0.3, 1.0)
-    elif mode == "away":
-        u = np.random.uniform(-1.0, -0.3)
-    elif mode == "edge":
-        u = np.random.uniform(-0.3, 0.3)
-    else:
-        u = np.random.uniform(-1.0, 1.0)
+    r0 = r0 or (grid * 0.3)
+    return np.exp(-(r / r0))
 
-    return np.degrees(np.arccos(u))
+def clumpy_gas(grid, n_blobs=25):
+    img = np.zeros((grid, grid), dtype=np.float32)
 
-# ─────────────────────────────────────────────
-# TRUNCATION
-# ─────────────────────────────────────────────
+    for _ in range(n_blobs):
+        y = np.random.randint(0, grid)
+        x = np.random.randint(0, grid)
+        amp = np.random.uniform(0.2, 1.0)
+        sigma = np.random.uniform(2, 10)
 
-def truncate(vol, p=0.2):
-    if np.random.random() > p:
-        return vol
+        yy, xx = np.mgrid[0:grid, 0:grid]
+        blob = np.exp(-((xx-x)**2 + (yy-y)**2) / (2*sigma**2))
+        img += amp * blob
 
-    cut = np.random.randint(GRID // 4, GRID // 2)
+    return img / (img.max() + 1e-8)
 
-    if np.random.random() < 0.5:
-        vol[:cut, :, :] = 0
-    else:
-        vol[cut:, :, :] = 0
+def psf_blur(img):
+    # cheap Gaussian blur (no scipy dependency)
+    kernel = np.array([[1,2,1],
+                       [2,4,2],
+                       [1,2,1]], dtype=np.float32)
+    kernel /= kernel.sum()
 
-    return vol
+    pad = np.pad(img, 1, mode="reflect")
+    out = np.zeros_like(img)
 
-# ─────────────────────────────────────────────
-# PROJECTION
-# ─────────────────────────────────────────────
+    for i in range(img.shape[0]):
+        for j in range(img.shape[1]):
+            out[i,j] = np.sum(pad[i:i+3, j:j+3] * kernel)
 
-def project(vol):
-    return vol.max(axis=0).astype(np.float32)
+    return out
 
-# ─────────────────────────────────────────────
+# =========================================================
 # SAMPLE GENERATION
-# ─────────────────────────────────────────────
+# =========================================================
 
 def maybe_blank():
-    return np.random.random() < 0.1
+    return np.random.rand() < 0.12
 
-def make_sample():
-    # Blank case
-    if maybe_blank():
-        img = np.zeros((GRID, GRID), dtype=np.float32)
-        mask = np.zeros((GRID, GRID), dtype=np.float32)
+def sample_params():
+    return {
+        "has_agn": np.random.rand() > 0.15,
+        "n_cones": np.random.choice([0,1,2], p=[0.2,0.4,0.4]),
+        "opening": np.random.uniform(15, 45),
+        "asymmetry": np.random.uniform(0.5, 1.5),
+        "clumpiness": np.random.uniform(0.5, 2.0),
+        "noise": np.random.uniform(0.01, 0.05)
+    }
+
+def generate_sample():
+    params = sample_params()
+    grid = GRID
+
+    if maybe_blank() or not params["has_agn"]:
+        img = clumpy_gas(grid, n_blobs=10)
+        mask = np.zeros((grid, grid), dtype=np.float32)
         return img, mask
 
-    r = GRID // 2 - 2
-    opening = 25
+    vdir = pixel_vectors(grid)
 
-    phi = np.random.uniform(0, 360)
-    theta = sample_theta()
+    emission = np.zeros((grid, grid), dtype=np.float32)
+    mask = np.zeros((grid, grid), dtype=np.float32)
 
-    ax1 = axis(phi, theta)
-    ax2 = -ax1  # clean opposite cone
+    n_cones = params["n_cones"]
 
-    v1 = cone(GRID, ax1, opening, r)
-    v2 = cone(GRID, ax2, opening, r)
+    for _ in range(n_cones):
+        phi = np.random.uniform(0, 360)
+        theta = np.random.uniform(0, 180)
+        axis_vec = axis(phi, theta)
 
-    vol = v1 | v2
-    vol = truncate(vol, p=0.2)
+        illum = cone_illumination(vdir, axis_vec, params["opening"])
 
-    image = project(vol)
-    image = image / (image.max() + 1e-8)
+        rdecay = radial_decay((grid, grid))
 
-    mask = project(vol).astype(np.float32)
-    mask = (mask > 0).astype(np.float32)
+        cone_field = illum * rdecay
 
-    return image, mask
+        emission += cone_field
+        mask += illum
 
-# ─────────────────────────────────────────────
-# DATASET
-# ─────────────────────────────────────────────
+    # physical components
+    gas = clumpy_gas(grid, n_blobs=int(20 * params["clumpiness"]))
+    emission += 0.6 * gas
+
+    emission = psf_blur(emission)
+
+    noise = np.random.normal(0, params["noise"], emission.shape)
+    emission += noise
+
+    emission = np.clip(emission, 0, None)
+    emission /= (emission.max() + 1e-8)
+
+    mask = mask / (mask.max() + 1e-8)
+
+    return emission.astype(np.float32), mask.astype(np.float32)
+
+# =========================================================
+# DATASET BUILD
+# =========================================================
 
 def generate():
-    return [make_sample() for _ in range(N_SAMPLES)]
+    return [generate_sample() for _ in range(N_SAMPLES)]
 
 def save(samples):
     for i, (img, mask) in enumerate(samples):
-        split = "train" if i < 160 else "val" if i < 180 else "test"
 
-        np.save(BASE_DIR / split / "images" / f"{i:04d}.npy", img)
-        np.save(BASE_DIR / split / "masks" / f"{i:04d}.npy", mask)
+        if i < int(N_SAMPLES * TRAIN_SPLIT):
+            split = "train"
+        elif i < int(N_SAMPLES * (TRAIN_SPLIT + VAL_SPLIT)):
+            split = "val"
+        else:
+            split = "test"
 
-# ─────────────────────────────────────────────
-# VISUALIZATION
-# ─────────────────────────────────────────────
+        np.save(BASE_DIR / split / "images" / f"{i:05d}.npy", img)
+        np.save(BASE_DIR / split / "masks" / f"{i:05d}.npy", mask)
+
+# =========================================================
+# VISUAL CHECK
+# =========================================================
 
 def viz(samples):
-    plt.figure(figsize=(8, 8))
+    plt.figure(figsize=(10, 10))
     for i in range(9):
-        img, _ = samples[i]
+        img, mask = samples[i]
         plt.subplot(3, 3, i + 1)
         plt.imshow(img, cmap="inferno")
         plt.axis("off")
     plt.tight_layout()
     plt.show()
 
-# ─────────────────────────────────────────────
+# =========================================================
 # METADATA
-# ─────────────────────────────────────────────
+# =========================================================
 
 def save_metadata():
     meta = {
         "grid": GRID,
-        "n_samples": N_SAMPLES,
-        "blank_fraction": 0.1,
-        "truncation_prob": 0.2,
-        "orientation_modes": ["toward", "away", "edge", "uniform"],
-        "description": "Sanity-check synthetic bicone dataset with orientation diversity"
+        "samples": N_SAMPLES,
+        "model": "illumination_field + clumpy gas + PSF blur",
+        "mask_type": "soft cone illumination field",
+        "note": "designed for UNet generalization to JWST/HST OIII morphology"
     }
 
     with open(BASE_DIR / "metadata.json", "w") as f:
         json.dump(meta, f, indent=2)
 
-# ─────────────────────────────────────────────
+# =========================================================
 # RUN
-# ─────────────────────────────────────────────
+# =========================================================
 
 if __name__ == "__main__":
     reset()
     samples = generate()
-    viz(samples)
+    viz(samples[:9])
     save(samples)
     save_metadata()
 
-    print(f"\nDONE — dataset ready at: {BASE_DIR}\n")
+    print(f"\nDONE → {BASE_DIR}\n")

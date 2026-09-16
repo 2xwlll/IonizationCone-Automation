@@ -1,0 +1,20 @@
+{
+  "n_samples": 100,
+  "n_valid_comparisons": 84,
+  "n_no_agn_gt": 16,
+  "n_no_prediction": 0,
+  "mean_iou": 0.6466366139955199,
+  "std_iou": 0.19888759609941303,
+  "median_iou": 0.6286002099514008,
+  "samples_iou_gt_0.5": 78,
+  "mean_delta_pa_deg": 3.6785714285714284,
+  "std_delta_pa_deg": 2.7479893701088605,
+  "median_delta_pa_deg": 3.0,
+  "pa_within_10deg": 82,
+  "pa_within_20deg": 84,
+  "mean_delta_open_deg": 13.095238095238095,
+  "std_delta_open_deg": 7.063688244109966,
+  "median_delta_open_deg": 12.5,
+  "opening_within_10deg": 26,
+  "opening_within_20deg": 67
+}

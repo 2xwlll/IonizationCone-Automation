@@ -1,0 +1,14 @@
+{
+  "cone_axis_deg": 142.5,
+  "opening_full_deg": 80.0,
+  "opening_half_deg": 40.0,
+  "predicted_pixels": 1043,
+  "cone_fraction_pct": 6.37,
+  "counter_axis_deg": -95.5,
+  "counter_opening_deg": 70.0,
+  "lobe_asymmetry": 0.88,
+  "literature_axis_deg": 120.0,
+  "literature_opening_full_deg": 80.0,
+  "axis_offset_from_lit_deg": 22.5,
+  "opening_offset_from_lit_deg": 0.0
+}
