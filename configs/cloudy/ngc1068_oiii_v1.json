@@ -1,0 +1,39 @@
+{
+  "profile": "NGC 1068 nearby-AGN O III pilot",
+  "redshift": 0.003793,
+  "cloudy": {
+    "log_u": [-3.0, -2.25, -1.5],
+    "log_nh_cm3": [2.0, 3.0, 4.0],
+    "metallicity_solar": [0.7, 1.0, 1.5],
+    "log_column_density_cm2": 21.5,
+    "grain_models": [
+      {"name": "ism", "dust_scale": 0.5, "pah_scale": 0.0},
+      {"name": "ism", "dust_scale": 1.0, "pah_scale": 0.0},
+      {"name": "ism_pah", "dust_scale": 1.0, "pah_scale": 0.1}
+    ]
+  },
+  "cube": {
+    "wavelength_min_angstrom": 4965.0,
+    "wavelength_max_angstrom": 5040.0,
+    "wavelength_channels": 96,
+    "spatial_pixels": 256,
+    "oversample": 2,
+    "pixel_scale_arcsec": 0.04,
+    "distance_mpc": 14.4,
+    "opening_half_angle_deg": 38.0,
+    "position_angle_deg": 30.0,
+    "inclination_deg": 45.0,
+    "maximum_outflow_kms": 900.0,
+    "velocity_dispersion_kms": 85.0,
+    "psf_fwhm_arcsec": 0.075
+  },
+  "sampling": {
+    "position_angle_deg": [0.0, 360.0],
+    "inclination_abs_deg": [15.0, 75.0],
+    "opening_half_angle_deg": [22.0, 48.0],
+    "cone_radius_fraction": [0.65, 0.95],
+    "single_visible_lobe_fraction": 0.15,
+    "host_oiii_fraction": [0.03, 0.18],
+    "foreground_dust_tau_5007": [0.0, 0.8]
+  }
+}

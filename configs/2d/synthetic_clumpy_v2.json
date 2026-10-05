@@ -1,0 +1,255 @@
+{
+  "dataset": {
+    "grid": 128,
+    "samples": 10000,
+    "seed": 42,
+    "train_fraction": 0.8,
+    "validation_fraction": 0.1
+  },
+  "mixture": {
+    "negative_fraction": 0.2,
+    "bicone_fraction": 0.6,
+    "obscured_counter_fraction": 0.0,
+    "distractor_on_positive_fraction": 0.35,
+    "negative_types": [
+      "diffuse",
+      "disk",
+      "jet",
+      "bipolar_blobs",
+      "psf_residual"
+    ]
+  },
+  "geometry": {
+    "opening_angle_deg": [
+      15.0,
+      55.0
+    ],
+    "inclination_deg": [
+      0.0,
+      75.0
+    ],
+    "position_angle_deg": [
+      0.0,
+      360.0
+    ],
+    "radius_fraction": [
+      0.25,
+      0.48
+    ],
+    "inner_radius_fraction": [
+      0.04,
+      0.18
+    ],
+    "center_offset_pixels": [
+      0.0,
+      10.0
+    ],
+    "warp_amplitude_deg": [
+      0.0,
+      12.0
+    ],
+    "warp_scale_fraction": [
+      0.2,
+      0.6
+    ],
+    "lobe_ratio": [
+      0.1,
+      1.0
+    ],
+    "path_width_fraction": [
+      0.6,
+      0.85
+    ],
+    "pathway_strength": [
+      0.0,
+      0.4
+    ],
+    "path_width_tracking": [
+      0.0,
+      0.3
+    ],
+    "edge_emission_tracking": [
+      0.0,
+      0.15
+    ]
+  },
+  "emission": {
+    "cone_boost": [
+      3.0,
+      8.0
+    ],
+    "wisp_amplitude": [
+      1.0,
+      2.5
+    ],
+    "wisp_count": [
+      15,
+      60
+    ],
+    "halo_radius_fraction": [
+      0.15,
+      0.3
+    ],
+    "diffuse_fraction": [
+      0.08,
+      0.2
+    ],
+    "texture_strength": [
+      0.7,
+      0.97
+    ],
+    "texture_gamma": [
+      1.4,
+      3.0
+    ],
+    "smooth_cone_fraction": [
+      0.05,
+      0.25
+    ],
+    "grain_count": [
+      80,
+      220
+    ],
+    "grain_sigma_pixels": [
+      0.35,
+      2.5
+    ]
+  },
+  "morphology": {
+    "angular_boundary_roughness": [
+      0.12,
+      0.38
+    ],
+    "radial_boundary_roughness": [
+      0.12,
+      0.35
+    ],
+    "boundary_noise_scale_pixels": [
+      3.0,
+      12.0
+    ],
+    "radial_edge_width_pixels": [
+      1.5,
+      6.0
+    ],
+    "fragmentation_strength": [
+      0.15,
+      0.55
+    ]
+  },
+  "obscuration": {
+    "counter_transmission": [0.0, 0.03],
+    "dust_depth": [
+      0.2,
+      0.5
+    ],
+    "dust_scale_small": [
+      4.0,
+      10.0
+    ],
+    "dust_scale_large": [
+      10.0,
+      20.0
+    ]
+  },
+  "instrument": {
+    "psf_sigma_pixels": [
+      0.8,
+      2.0
+    ],
+    "noise_sigma": [
+      0.003,
+      0.025
+    ],
+    "nucleus_sigma_pixels": [
+      1.5,
+      3.5
+    ],
+    "nucleus_amplitude": [
+      0.7,
+      1.3
+    ],
+    "intensity_gamma": [
+      0.8,
+      1.3
+    ]
+  },
+  "background": {
+    "disk_fraction": 0.7,
+    "disk_axis_ratio": [
+      0.2,
+      0.7
+    ],
+    "disk_radius_fraction": [
+      0.2,
+      0.45
+    ],
+    "disk_amplitude": [
+      0.015,
+      0.06
+    ],
+    "gradient_amplitude": [
+      0.0,
+      0.08
+    ]
+  },
+  "labels": {
+    "training_threshold": 0.5,
+    "mode": "connected_geometry",
+    "description": "Single connected geometric ionization cone or bicone, including the nucleus."
+  },
+  "clouds": {
+    "count": [
+      18,
+      46
+    ],
+    "sigma_pixels": [
+      1.2,
+      4.5
+    ],
+    "axis_ratio": [
+      0.65,
+      1.0
+    ],
+    "cluster_fraction": [
+      0.3,
+      0.65
+    ],
+    "cluster_scale_pixels": [
+      3.0,
+      8.0
+    ],
+    "luminosity_scatter": [
+      0.4,
+      1.0
+    ],
+    "irregularity": [
+      0.25,
+      0.7
+    ],
+    "structure_scale_pixels": [
+      0.8,
+      2.0
+    ],
+    "density_contrast": [
+      0.6,
+      1.4
+    ],
+    "cloud_weight": [
+      1.0,
+      1.0
+    ],
+    "diffuse_weight": [
+      0.12,
+      0.35
+    ],
+    "filament_weight": [
+      0.02,
+      0.12
+    ],
+    "bridge_weight": [
+      0.1,
+      0.25
+    ]
+  }
+}

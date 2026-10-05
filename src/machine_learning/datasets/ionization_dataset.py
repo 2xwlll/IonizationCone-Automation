@@ -49,9 +49,17 @@ class IonizationConeDataset2D(Dataset):
         image = np.load(img_path).astype(np.float32)
         mask  = np.load(mask_path).astype(np.float32)
 
-        # --- Basic validation ---
-        if image.shape != mask.shape:
-            raise ValueError(f"Shape mismatch: {img_file}")
+        # A spectral sample is stored channel-first as (wavelength, y, x),
+        # while its segmentation target remains a single (y, x) mask.
+        if image.ndim not in (2, 3):
+            raise ValueError(
+                f"Expected 2D image or channel-first spectral cube, got "
+                f"{image.shape} in {img_file}"
+            )
+        if image.shape[-2:] != mask.shape:
+            raise ValueError(
+                f"Spatial shape mismatch: image={image.shape}, mask={mask.shape}"
+            )
 
         # --- Normalize image ---
         if self.normalize:
@@ -64,8 +72,9 @@ class IonizationConeDataset2D(Dataset):
         # --- Ensure mask is binary ---
         mask = (mask > 0.5).astype(np.float32)
 
-        # --- Add channel dim ---
-        image = np.expand_dims(image, axis=0)
+        # Grayscale images need a channel; cubes already use wavelength as it.
+        if image.ndim == 2:
+            image = np.expand_dims(image, axis=0)
         mask  = np.expand_dims(mask, axis=0)
 
         image = torch.from_numpy(image)

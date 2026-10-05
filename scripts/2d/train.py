@@ -211,7 +211,9 @@ def main():
     print(f"MASK shape={masks.shape} unique={torch.unique(masks).tolist()}")
     print(f"Device: {DEVICE}\n")
 
-    model     = UNet(in_channels=1, out_channels=1).to(DEVICE)
+    # Wavelength-resolved samples arrive as [batch, wavelength, y, x].
+    # Conv2d mixes all wavelength channels at each spatial position.
+    model     = UNet(in_channels=imgs.shape[1], out_channels=1).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=LR)
 
     # pos_weight fixes class imbalance — missing a cone pixel costs
