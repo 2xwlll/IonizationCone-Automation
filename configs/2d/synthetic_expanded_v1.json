@@ -9,6 +9,7 @@
   "mixture": {
     "negative_fraction": 0.2,
     "bicone_fraction": 0.6,
+    "obscured_counter_fraction": 0.0,
     "distractor_on_positive_fraction": 0.35,
     "negative_types": ["diffuse", "disk", "jet", "bipolar_blobs", "psf_residual"]
   },
@@ -21,7 +22,11 @@
     "center_offset_pixels": [0.0, 10.0],
     "warp_amplitude_deg": [0.0, 12.0],
     "warp_scale_fraction": [0.2, 0.6],
-    "lobe_ratio": [0.1, 1.0]
+    "lobe_ratio": [0.1, 1.0],
+    "path_width_fraction": [0.6, 0.85],
+    "pathway_strength": [0.0, 0.4],
+    "path_width_tracking": [0.0, 0.3],
+    "edge_emission_tracking": [0.0, 0.15]
   },
   "emission": {
     "cone_boost": [3.0, 8.0],
@@ -43,6 +48,7 @@
     "fragmentation_strength": [0.15, 0.55]
   },
   "obscuration": {
+    "counter_transmission": [0.0, 0.03],
     "dust_depth": [0.2, 0.5],
     "dust_scale_small": [4.0, 10.0],
     "dust_scale_large": [10.0, 20.0]
@@ -63,6 +69,7 @@
   },
   "labels": {
     "training_threshold": 0.5,
-    "description": "Soft emission-weighted cone support; loader may threshold for binary training."
+    "mode": "connected_geometry",
+    "description": "Single connected geometric ionization cone or bicone, including the nucleus."
   }
 }

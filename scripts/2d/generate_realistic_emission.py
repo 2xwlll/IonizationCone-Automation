@@ -7,6 +7,10 @@ from pathlib import Path
 import shutil
 import argparse
 import json
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from src.simple_utils.agn_profile import apply_agn_profile
+from src.simple_utils.cone_labels import connected_cone_mask
 
 # =========================================================
 # CONFIG
@@ -15,14 +19,18 @@ import json
 parser = argparse.ArgumentParser(
     description="Generate a reproducible, parameter-tracked synthetic OIII dataset."
 )
-parser.add_argument("--name", type=str, default="synthetic_oiii_expanded_v1")
+parser.add_argument("--name", type=str, default="synthetic_oiii_clumpy_v2")
 parser.add_argument(
     "--config", type=Path,
-    default=Path("configs/2d/synthetic_expanded_v1.json"),
+    default=Path("configs/2d/synthetic_clumpy_v2.json"),
 )
 parser.add_argument("--samples", type=int, default=None)
 parser.add_argument("--seed", type=int, default=None)
+parser.add_argument("--agn-profile", type=Path, default=None,
+                    help="Observation-backed geometry profile JSON")
 parser.add_argument("--negative-frac", type=float, default=None)
+parser.add_argument("--obscured-counter-frac", type=float, default=None,
+                    help="Training fraction of intrinsic bicones whose counter-lobe is hidden")
 parser.add_argument(
     "--overwrite", action="store_true",
     help="Replace an existing dataset directory (never enabled implicitly).",
@@ -31,6 +39,8 @@ args = parser.parse_args()
 
 with open(args.config) as f:
     CONFIG = json.load(f)
+if args.agn_profile is not None:
+    CONFIG = apply_agn_profile(CONFIG, args.agn_profile)
 
 dataset_config = CONFIG["dataset"]
 mixture_config = CONFIG["mixture"]
@@ -44,6 +54,11 @@ NEGATIVE_FRAC = float(
     args.negative_frac
     if args.negative_frac is not None
     else mixture_config["negative_fraction"]
+)
+OBSCURED_COUNTER_FRAC = float(
+    args.obscured_counter_frac
+    if args.obscured_counter_frac is not None
+    else mixture_config.get("obscured_counter_fraction", 0.0)
 )
 
 
@@ -60,11 +75,46 @@ def sample_int_range(section, name):
 
 
 def validate_config():
+    labels = CONFIG.get("labels", {})
+    if labels.get("mode", "connected_geometry") not in ("connected_geometry", "visible_emission"):
+        raise ValueError("labels.mode must be connected_geometry or visible_emission")
+    for name in ("path_width_fraction", "pathway_strength", "path_width_tracking", "edge_emission_tracking"):
+        low, high = CONFIG["geometry"][name]
+        if not 0 <= low <= high <= 1:
+            raise ValueError(f"geometry.{name} must be within [0, 1]")
+    if labels.get("detection_snr", 2.5) <= 0:
+        raise ValueError("labels.detection_snr must be positive")
+    if not 0 <= labels.get("peak_fraction_floor", 0.0) < 1:
+        raise ValueError("labels.peak_fraction_floor must be in [0, 1)")
+    if "counter_transmission" in CONFIG["obscuration"]:
+        low, high = CONFIG["obscuration"]["counter_transmission"]
+        if not 0 <= low <= high <= 1:
+            raise ValueError("obscuration.counter_transmission must be within [0, 1]")
+    if "clouds" in CONFIG:
+        cloud = CONFIG["clouds"]
+        for name in ("count", "sigma_pixels", "cluster_scale_pixels", "structure_scale_pixels"):
+            if min(cloud[name]) <= 0:
+                raise ValueError(f"clouds.{name} must be positive")
+        for name in ("axis_ratio", "cluster_fraction", "irregularity"):
+            if not 0 <= cloud[name][0] <= cloud[name][1] <= 1:
+                raise ValueError(f"clouds.{name} must be within [0, 1]")
+        if cloud["axis_ratio"][0] == 0:
+            raise ValueError("clouds.axis_ratio must be positive")
+        if any(int(v) != v for v in cloud["count"]) or cloud["count"][0] >= cloud["count"][1]:
+            raise ValueError("clouds.count must be an integer [low, high) range")
+        for name in ("luminosity_scatter", "density_contrast", "cloud_weight", "diffuse_weight", "filament_weight", "bridge_weight"):
+            if name not in cloud:
+                continue
+            if min(cloud[name]) < 0:
+                raise ValueError(f"clouds.{name} cannot be negative")
+        if cloud["cloud_weight"][0] <= 0:
+            raise ValueError("clouds.cloud_weight must be positive")
     fractions = {
         "train_fraction": TRAIN_SPLIT,
         "validation_fraction": VAL_SPLIT,
         "negative_fraction": NEGATIVE_FRAC,
         "bicone_fraction": mixture_config["bicone_fraction"],
+        "obscured_counter_fraction": OBSCURED_COUNTER_FRAC,
         "distractor_on_positive_fraction": mixture_config[
             "distractor_on_positive_fraction"
         ],
@@ -390,6 +440,63 @@ def granular_knots(grid, count, sigma_min, sigma_max):
     grains /= grains.max() + 1e-8
     return grains
 
+
+def cloud_components(grid, illum, settings, seed):
+    """Compact cloud complexes and an independent correlated diffuse field.
+
+    Local RNG keeps changes to these controls out of geometry/dust/noise draws.
+    Positions follow illumination continuously, without a radial cutoff.
+    Sizes are intrinsic Gaussian major-axis sigmas, before the instrument PSF.
+    """
+    rng = np.random.RandomState(seed)
+    yy, xx = np.mgrid[:grid, :grid]
+    probability = np.sqrt(np.maximum(illum, 0)).ravel().astype(float)
+    probability /= probability.sum()
+    count = settings["count"]
+    indices = rng.choice(grid * grid, count, p=probability)
+    centers = np.column_stack(np.unravel_index(indices, (grid, grid))).astype(float)
+    # Draw all random arrays even when a weight/fraction is zero, for ablations.
+    parent_indices = rng.randint(0, count, count)
+    clustered = rng.uniform(size=count) < settings["cluster_fraction"]
+    offsets = rng.normal(size=(count, 2)) * settings["cluster_scale_pixels"]
+    centers[clustered] = (centers[parent_indices] + offsets)[clustered]
+    sigma = np.exp(rng.uniform(np.log(settings["sigma_pixels"][0]),
+                               np.log(settings["sigma_pixels"][1]), count))
+    ratios = rng.uniform(*settings["axis_ratio"], count)
+    angles = rng.uniform(0, np.pi, count)
+    amplitudes = np.exp(np.clip(rng.normal(size=count) * settings["luminosity_scatter"], -10, 10))
+    clouds = np.zeros((grid, grid), dtype=np.float64)
+    for (cy, cx), size, ratio, angle, amplitude in zip(centers, sigma, ratios, angles, amplitudes):
+        dx, dy = xx - cx, yy - cy
+        major = dx * np.cos(angle) + dy * np.sin(angle)
+        minor = -dx * np.sin(angle) + dy * np.cos(angle)
+        clouds += amplitude * np.exp(-0.5 * ((major / size)**2 + (minor / (size * ratio))**2))
+    structure = gaussian_filter(rng.normal(size=(grid, grid)), settings["structure_scale_pixels"])
+    structure = (structure - structure.mean()) / (structure.std() + 1e-8)
+    clouds *= np.exp(np.clip(settings["irregularity"] * structure, -10, 10))
+    diffuse = np.exp(np.clip(settings["density_contrast"] * structure, -10, 10))
+    return clouds.astype(np.float32), diffuse.astype(np.float32)
+
+
+def normalize_component(field, illum):
+    """Unit illumination-weighted mean: weights control flux, not peak counts."""
+    mean = np.sum(field * illum, dtype=np.float64) / (np.sum(illum, dtype=np.float64) + 1e-12)
+    return field / max(mean, 1e-12)
+
+
+def sample_cloud_settings(sample_seed):
+    """Sample cloud controls separately so existing sample geometry is preserved."""
+    rng = np.random.RandomState((int(sample_seed) + 104729) % (2**32))
+    result = {}
+    for name, bounds in CONFIG["clouds"].items():
+        if name in ("sigma_pixels", "axis_ratio"):
+            result[name] = list(bounds)
+        elif name == "count":
+            result[name] = int(rng.randint(*bounds))
+        else:
+            result[name] = float(rng.uniform(*bounds))
+    return result
+
 def gas_texture(
     grid, phi, opening_angle, r_max, strength, gamma, lobe_seed=None,
     center_x=None, center_y=None,
@@ -438,7 +545,8 @@ def gas_texture(
     angle   = np.arccos(cosang)
 
     cone_region  = np.exp(-(angle / np.radians(opening_angle * 0.8))**2)
-    cone_region *= (r < r_max).astype(np.float32)
+    # A broad continuous envelope avoids an artificial circular arc at r_max.
+    cone_region *= np.exp(-0.5 * (r / r_max) ** 2)
 
     density = (1.0 - scale) + scale * img
     return (density * cone_region).astype(np.float32)
@@ -474,7 +582,8 @@ def dust_clumps(
     angle  = np.arccos(cosang)
 
     cone_region  = np.exp(-(angle / np.radians(opening_angle))**2)
-    cone_region *= (r < r_max).astype(np.float32)
+    # A broad continuous envelope avoids an artificial circular arc at r_max.
+    cone_region *= np.exp(-0.5 * (r / r_max) ** 2)
 
     absorption = 1.0 - depth * cone_region * dust
 
@@ -505,13 +614,24 @@ def sample_params(grid, sample_seed):
     positive_distractor_types = [
         kind for kind in mixture_config["negative_types"] if kind != "diffuse"
     ]
+    intrinsic_bicone = bool(not is_negative and np.random.rand() < mixture_config["bicone_fraction"])
+    counter_lobe_obscured = bool(
+        intrinsic_bicone and np.random.rand() < OBSCURED_COUNTER_FRAC
+    )
+    counter_transmission = (
+        sample_range("obscuration", "counter_transmission")
+        if counter_lobe_obscured else 1.0
+    )
     return {
         "sample_seed":   int(sample_seed),
         "is_negative":   is_negative,
         "negative_kind": negative_kind,
         "has_agn":       not is_negative,
         "difficulty":     difficulty,
-        "bicone":        np.random.rand() < mixture_config["bicone_fraction"],
+        "intrinsic_bicone": intrinsic_bicone,
+        "counter_lobe_obscured": counter_lobe_obscured,
+        "counter_transmission": counter_transmission,
+        "bicone":        intrinsic_bicone and not counter_lobe_obscured,
         "phi":           sample_range("geometry", "position_angle_deg"),
         "opening":       sample_range("geometry", "opening_angle_deg"),
         "opening_scale": float(np.random.uniform(0.8, 1.2)),
@@ -524,6 +644,10 @@ def sample_params(grid, sample_seed):
         "warp_amplitude": sample_range("geometry", "warp_amplitude_deg"),
         "warp_scale":    grid * sample_range("geometry", "warp_scale_fraction"),
         "warp_direction": float(np.random.uniform(0, 360)),
+        "path_width_fraction": sample_range("geometry", "path_width_fraction"),
+        "pathway_strength": sample_range("geometry", "pathway_strength"),
+        "path_width_tracking": sample_range("geometry", "path_width_tracking"),
+        "edge_emission_tracking": sample_range("geometry", "edge_emission_tracking"),
         "lobe_ratio":     sample_range("geometry", "lobe_ratio"),
         "boost_str":      cone_boost,
         "wisp_amp":       sample_range("emission", "wisp_amplitude"),
@@ -586,6 +710,9 @@ def generate_sample(sample_seed):
         img = hard_negative(grid, params["negative_kind"], params)
         return img, np.zeros((grid, grid), dtype=np.float32), params
 
+    if "clouds" in CONFIG:
+        params["clouds"] = sample_cloud_settings(sample_seed)
+
     phi         = params["phi"]
     opening     = params["opening"]
     r_max       = params["r_max"]
@@ -595,9 +722,9 @@ def generate_sample(sample_seed):
         grid, params["halo_radius"], params["center_x"], params["center_y"]
     )
     emission = np.zeros((grid, grid), dtype=np.float32)
-    mask_acc = np.zeros((grid, grid), dtype=np.float32)
+    cone_signal = np.zeros((grid, grid), dtype=np.float32)
 
-    cone_phis = [phi, phi + 180] if params["bicone"] else [phi]
+    cone_phis = [phi, phi + 180] if params["intrinsic_bicone"] else [phi]
 
     for lobe_index, cone_phi in enumerate(cone_phis):
 
@@ -627,6 +754,30 @@ def generate_sample(sample_seed):
         cone_emission += params["wisp_amp"] * wisps * illum
         cone_emission += params["wisp_amp"] * grains * illum
 
+        if "clouds" in params:
+            settings = params["clouds"]
+            clouds, diffuse = cloud_components(
+                grid, illum, settings,
+                (int(sample_seed) + 13007 * (lobe_index + 1)) % (2**32),
+            )
+            yy, xx = np.mgrid[:grid, :grid]
+            across = (-(xx - params["center_x"]) * np.sin(np.radians(cone_phi))
+                      + (yy - params["center_y"]) * np.cos(np.radians(cone_phi)))
+            radius = np.hypot(xx - params["center_x"], yy - params["center_y"])
+            bridge_width = 1.5 + 0.08 * radius
+            bridge = np.exp(-0.5 * (across / bridge_width) ** 2) * np.sqrt(diffuse)
+            # Keep legacy random draws above for paired geometry comparisons.
+            mixture = (
+                settings["cloud_weight"] * normalize_component(clouds, illum)
+                + settings["diffuse_weight"] * normalize_component(diffuse, illum)
+                + settings["filament_weight"] * normalize_component(wisps, illum)
+                + settings.get("bridge_weight", 0.0) * normalize_component(bridge, illum)
+            )
+            total_weight = sum(settings[key] for key in
+                               ("cloud_weight", "diffuse_weight", "filament_weight"))
+            total_weight += settings.get("bridge_weight", 0.0)
+            cone_emission = params["boost_str"] * halo * illum * mixture / total_weight
+
         dust           = dust_clumps(
             grid, cone_phi, opening, r_max, params["dust_depth"],
             [params["dust_scale_small"], params["dust_scale_large"]],
@@ -635,14 +786,13 @@ def generate_sample(sample_seed):
         cone_emission *= dust
 
         if lobe_index == 1:
-            cone_emission *= params["lobe_ratio"]
+            cone_emission *= params["lobe_ratio"] * params["counter_transmission"]
 
         emission += cone_emission
 
-        # mask weighted by actual emission — follows gas, not full geometry
-        mask_acc += illum * (
-            cone_emission / (cone_emission.max() + 1e-8)
-        )
+        # Preserve the cone-only flux for a detectability label. Dust and lobe
+        # asymmetry have already been applied; contaminants are added later.
+        cone_signal += cone_emission
 
     # faint isotropic background
     emission += params["diffuse_fraction"] * halo
@@ -655,6 +805,7 @@ def generate_sample(sample_seed):
 
     # PSF blur — before disk so disk is not double-smoothed
     emission = gaussian_filter(emission, sigma=params["psf_sigma"])
+    cone_signal = gaussian_filter(cone_signal, sigma=params["psf_sigma"])
 
     # host disk added after PSF — avoids double-smoothing
     if params["has_disk"]:
@@ -673,6 +824,22 @@ def generate_sample(sample_seed):
     ) / grid
     emission += params["gradient_amplitude"] * gradient
 
+    if CONFIG.get("labels", {}).get("mode", "connected_geometry") == "connected_geometry":
+        target_mask = connected_cone_mask(grid, params)
+    else:
+        # Legacy label: detectable cone flux, potentially disconnected.
+        snr_cut = CONFIG.get("labels", {}).get("detection_snr", 2.5)
+        signal_noise = params["noise"] * np.sqrt(np.abs(emission) + 1e-6)
+        peak_floor = CONFIG.get("labels", {}).get("peak_fraction_floor", 0.0)
+        visible_mask = cone_signal >= np.maximum(
+            snr_cut * np.maximum(signal_noise, 1e-8),
+            peak_floor * cone_signal.max(),
+        )
+        yy, xx = np.mgrid[:grid, :grid]
+        nuclear_radius = np.hypot(xx - params["center_x"], yy - params["center_y"])
+        visible_mask &= nuclear_radius >= params["inner_radius"]
+        target_mask = visible_mask.astype(np.float32)
+
     # Poisson-like shot noise
     shot      = np.random.normal(0, params["noise"], emission.shape)
     emission += shot * np.sqrt(np.abs(emission) + 1e-6)
@@ -681,10 +848,7 @@ def generate_sample(sample_seed):
     emission /= emission.max() + 1e-8
     emission = np.power(emission, params["intensity_gamma"])
 
-    mask_acc  = np.clip(mask_acc, 0, None)
-    mask_acc /= mask_acc.max() + 1e-8
-
-    return emission.astype(np.float32), mask_acc.astype(np.float32), params
+    return emission.astype(np.float32), target_mask, params
 
 # =========================================================
 # BUILD + SAVE
@@ -728,15 +892,19 @@ def save(samples):
 # =========================================================
 
 def viz(samples):
+    columns_per_sample = 2
     fig, axes = plt.subplots(3, 6, figsize=(15, 8))
     for i in range(9):
         img, mask, params = samples[i]
-        col = (i % 3) * 2
+        col = (i % 3) * columns_per_sample
         row = i // 3
         axes[row][col].imshow(
-            img, cmap="gray", origin="lower", vmin=0, vmax=1
+            np.arcsinh(10 * img) / np.arcsinh(10),
+            cmap="gray", origin="lower", vmin=0, vmax=1
         )
-        label = params["negative_kind"] or "cone"
+        label = (params["negative_kind"] or
+                 ("counter hidden" if params["counter_lobe_obscured"] else
+                  "bicone" if params["bicone"] else "cone"))
         axes[row][col].set_title(f"image {i}: {label}", fontsize=8)
         axes[row][col].axis("off")
         axes[row][col + 1].imshow(
@@ -777,6 +945,7 @@ def save_metadata(sample_metadata):
         "config_path":   str(args.config),
         "config":        CONFIG,
         "negative_fraction": NEGATIVE_FRAC,
+        "obscured_counter_fraction": OBSCURED_COUNTER_FRAC,
         "negative_types": list(mixture_config["negative_types"]),
         "actual_mixture": {
             "split_counts": split_counts,
@@ -785,6 +954,8 @@ def save_metadata(sample_metadata):
             "negative_type_counts": negative_type_counts,
             "positive_count": len(positive_items),
             "bicone_count": sum(item["bicone"] for item in positive_items),
+            "intrinsic_bicone_count": sum(item["intrinsic_bicone"] for item in positive_items),
+            "obscured_counter_count": sum(item["counter_lobe_obscured"] for item in positive_items),
             "positive_distractor_count": sum(
                 item["has_distractor"] for item in positive_items
             ),
@@ -798,19 +969,26 @@ def save_metadata(sample_metadata):
                 if foreground_fractions.size else None
             ),
         },
-        "model":         "offset nucleus + halo*boost + wisps*illum + texture + dust"
-                         " + host disk + gradients + optional hard distractor",
+        "model":         ("illumination-weighted compact clouds + correlated diffuse gas + filaments"
+                          if "clouds" in CONFIG else
+                          "offset nucleus + halo*boost + wisps*illum + texture + dust")
+                         + " + host disk + gradients + optional hard distractor",
+        "clouds":        CONFIG.get("clouds"),
         "hollow":        "sigmoid ramp centered at r_inner (0.04-0.18*grid) "
                          "— gradual onset, no abrupt bright edge",
         "warp":          "configured radial axis drift",
         "inclination":   "foreshortening drives near/far lobe asymmetry",
-        "texture":       "fine-weighted (1.5/1.0/0.5) + configured gamma contrast "
-                         "— independent per lobe",
+        "texture":       "fine-weighted (1.5/1.0/0.5) + configured gamma contrast; "
+                         "independent per lobe; "
+                         "Gaussian radial envelope without a hard cutoff",
         "wisp_sizes":    "three classes: knots 60%, filaments 25%, "
                          "diffuse 15%",
-        "dust":          "clumpy absorption per lobe; ranges stored in config",
+        "dust":          "clumpy absorption per lobe with Gaussian radial envelope; "
+                         "ranges stored in config",
         "host_disk":     "added after PSF; amplitude and frequency stored in config",
-        "mask":          "emission-weighted illumination field",
+        "mask":          ("single connected projected cone or bicone including nucleus"
+                          if CONFIG.get("labels", {}).get("mode", "connected_geometry") == "connected_geometry"
+                          else "cone-only post-PSF emission above configured signal-to-noise cutoff"),
         "noise":         "Poisson-like shot noise sqrt(signal)",
         "opening_range_deg": CONFIG["geometry"]["opening_angle_deg"],
     }
