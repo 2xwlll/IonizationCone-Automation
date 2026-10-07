@@ -1,0 +1,93 @@
+{
+  "generator": "scripts/cloudy/generate_oiii_cube.py",
+  "renderer": "scripts/cloudy/render_hst_f502n.py",
+  "config": "configs/cloudy/ngc1068_oiii_v1.json",
+  "grid": "data/cloudy/ngc1068_oiii_full_v1/grid.npz",
+  "display": {
+    "stretch": "asinh",
+    "softening_fraction": 0.08333333333333333,
+    "shared_flux_ceiling": 1.8481385707855225
+  },
+  "integration_max_reconstruction_error": 6.932397802472678e-07,
+  "interpretation": "Independent samples and numerical integration; no temporal evolution",
+  "samples": [
+    {
+      "seed": 1068,
+      "cube": "data/cloudy/ngc1068_f502n_gif_v1/cube_1068.npz",
+      "pair": "data/cloudy/ngc1068_f502n_gif_v1/f502n_1068.npz",
+      "geometry": {
+        "position_angle_deg": 293.0889186422273,
+        "inclination_deg_signed": -61.05755941670297,
+        "opening_half_angle_deg": 35.39992614929087,
+        "cone_radius_fraction": 0.7242920378859121,
+        "visible_lobes": "negative"
+      },
+      "mask_components": 1
+    },
+    {
+      "seed": 1069,
+      "cube": "data/cloudy/ngc1068_f502n_gif_v1/cube_1069.npz",
+      "pair": "data/cloudy/ngc1068_f502n_gif_v1/f502n_1069.npz",
+      "geometry": {
+        "position_angle_deg": 358.1659364501567,
+        "inclination_deg_signed": 70.33823659780384,
+        "opening_half_angle_deg": 28.465619399914694,
+        "cone_radius_fraction": 0.897792186952785,
+        "visible_lobes": "both"
+      },
+      "mask_components": 1
+    },
+    {
+      "seed": 1070,
+      "cube": "data/cloudy/ngc1068_f502n_gif_v1/cube_1070.npz",
+      "pair": "data/cloudy/ngc1068_f502n_gif_v1/f502n_1070.npz",
+      "geometry": {
+        "position_angle_deg": 80.54351547894437,
+        "inclination_deg_signed": 73.601254579319,
+        "opening_half_angle_deg": 38.59222340150311,
+        "cone_radius_fraction": 0.8584701908991608,
+        "visible_lobes": "both"
+      },
+      "mask_components": 1
+    },
+    {
+      "seed": 1071,
+      "cube": "data/cloudy/ngc1068_f502n_gif_v1/cube_1071.npz",
+      "pair": "data/cloudy/ngc1068_f502n_gif_v1/f502n_1071.npz",
+      "geometry": {
+        "position_angle_deg": 86.89399506421941,
+        "inclination_deg_signed": -67.40712460353629,
+        "opening_half_angle_deg": 46.75107811675741,
+        "cone_radius_fraction": 0.7465580331860283,
+        "visible_lobes": "both"
+      },
+      "mask_components": 1
+    },
+    {
+      "seed": 1072,
+      "cube": "data/cloudy/ngc1068_f502n_gif_v1/cube_1072.npz",
+      "pair": "data/cloudy/ngc1068_f502n_gif_v1/f502n_1072.npz",
+      "geometry": {
+        "position_angle_deg": 186.75102703339283,
+        "inclination_deg_signed": -56.025593228521636,
+        "opening_half_angle_deg": 33.36152251558714,
+        "cone_radius_fraction": 0.8087768970104149,
+        "visible_lobes": "both"
+      },
+      "mask_components": 1
+    },
+    {
+      "seed": 1073,
+      "cube": "data/cloudy/ngc1068_f502n_gif_v1/cube_1073.npz",
+      "pair": "data/cloudy/ngc1068_f502n_gif_v1/f502n_1073.npz",
+      "geometry": {
+        "position_angle_deg": 116.79914673754925,
+        "inclination_deg_signed": -70.53824677989559,
+        "opening_half_angle_deg": 37.32959346189189,
+        "cone_radius_fraction": 0.7789295919722118,
+        "visible_lobes": "both"
+      },
+      "mask_components": 1
+    }
+  ]
+}
