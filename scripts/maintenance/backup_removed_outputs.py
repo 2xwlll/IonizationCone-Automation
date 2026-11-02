@@ -4,11 +4,13 @@
 Run from the repository before pulling the cleanup commit. This only reads Git
 and existing outputs; it does not reset files, pull changes, or restore an archive.
 Symlinks are preserved as links, not followed into the separately managed data.
+Uses Python 3.6-compatible standard-library APIs for older SSH login nodes.
 """
 import argparse
 import datetime
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import tarfile
@@ -20,11 +22,11 @@ def main():
     parser.add_argument('--staged', action='store_true', help='Back up staged removals instead of a remote update')
     parser.add_argument('--output', type=Path)
     args = parser.parse_args()
-    root = Path(subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], text=True).strip())
+    root = Path(subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], universal_newlines=True).strip())
     command = ['git', 'diff', '--name-only', '--diff-filter=D', '-z']
     command += ['--cached'] if args.staged else ['HEAD', args.revision]
     command += ['--', 'results/', 'saved_runs/']
-    paths = [p for p in subprocess.check_output(command, cwd=root).decode().split('\0') if p]
+    paths = [p for p in subprocess.check_output(command, cwd=str(root)).decode().split('\0') if p]
     if not paths:
         print('No tracked research outputs are being removed by this update.')
         return
@@ -32,18 +34,18 @@ def main():
     output = args.output or root/'.local_backups'/f'removed-outputs-{stamp}'
     output = output.resolve()
     output.mkdir(parents=True, exist_ok=False)
-    manifest = {'head': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip(),
+    manifest = {'head': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=str(root), universal_newlines=True).strip(),
                 'comparison': 'staged deletions' if args.staged else args.revision,
                 'symlinks': 'preserved as links; target datasets are not copied', 'files': [], 'missing': []}
     archive = output/'outputs.tar.gz'
-    with tarfile.open(archive, 'w:gz', dereference=False) as tar:
+    with tarfile.open(str(archive), 'w:gz', dereference=False) as tar:
         for name in paths:
             relative = Path(name)
             if relative.is_absolute() or '..' in relative.parts:
                 raise ValueError('Unsafe output path in Git diff')
             source = root/relative
             if source.is_symlink():
-                record = {'path': name, 'link_target': str(source.readlink())}
+                record = {'path': name, 'link_target': os.readlink(str(source))}
             elif source.is_file():
                 record = {'path': name, 'sha256': hashlib.sha256(source.read_bytes()).hexdigest()}
             elif not source.exists():
@@ -51,10 +53,10 @@ def main():
                 continue
             else:
                 raise ValueError(f'Unexpected output type: {name}')
-            tar.add(source, arcname=name, recursive=False)
+            tar.add(str(source), arcname=name, recursive=False)
             manifest['files'].append(record)
     # Read the archive back, verifying bytes or link targets without extracting.
-    with tarfile.open(archive, 'r:gz') as tar:
+    with tarfile.open(str(archive), 'r:gz') as tar:
         for record in manifest['files']:
             member = tar.getmember(record['path'])
             if 'link_target' in record:

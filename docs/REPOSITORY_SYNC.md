@@ -62,6 +62,10 @@ not delete or reset anything. The pull will remove the previously tracked
 output paths from the SSH working tree; their contents remain in the backup.
 Ignored datasets and other untracked outputs are not removed by this cleanup.
 The helper reports no removals on subsequent updates that do not delete outputs.
+The helper uses Python 3.6-compatible standard-library APIs so it can run on
+older login nodes; this does not imply the scientific training stack supports
+Python 3.6. If an earlier downloaded helper fails on `text=True`, fetch again
+and repeat the `git show` command above before rerunning it.
 
 This updates the currently checked-out branch only if a fast-forward is possible.
 If Git reports local changes or diverging commits, preserve that work and resolve
