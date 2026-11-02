@@ -46,6 +46,7 @@ data/
 # =========================
 /results/
 /saved_runs/
+/.local_backups/
 
 # Keep the authored LaTeX source, not compiled documents or render previews.
 /output/*

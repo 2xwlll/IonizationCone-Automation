@@ -1,4 +1,8 @@
-# Active direction: 2D [O III] narrowband images
+# F502N branch: 2D [O III] narrowband images
+
+This document describes the optical branch. The current F187N diagnostic pilot
+has a separate status in [F187N_TRAINING_READINESS.md](F187N_TRAINING_READINESS.md);
+these F502N settings are not its training configuration.
 
 The U-Net input is one `(256,256)` F502N brightness image with a matching hard
 geometric cone mask. Internal wavelength samples are used to calculate the

@@ -5,9 +5,12 @@ tables with provenance, scientific documentation, and authored LaTeX sources.
 Generated research products remain local or are transferred separately.
 
 New files under `data/`, `results/`, `saved_runs/`, and compiled documents under
-`output/` are ignored. Historical outputs already committed remain tracked;
-ignore rules do not remove them or rewrite repository history. Do not use a
-force push or delete original research products to make a push smaller.
+`output/` are ignored. On 2026-11-02, 482 previously tracked generated images,
+animations, and array/FITS links were removed from the current Git tree. Small
+historical provenance records and source snapshots are retained. Original local
+outputs were preserved and backed up; Git history was not rewritten. Old images
+remain accessible in earlier commits, so a fresh clone still downloads that
+history. This cleanup does not reduce past Git object storage.
 
 ## Current F187N work
 
@@ -40,13 +43,25 @@ The GitHub integration branch is `master`. The local development branch was
 named `main`; use an explicit branch in synchronization commands to avoid
 assuming those names match.
 
-On the SSH machine, from its repository directory:
+**For the first update that removes old tracked outputs, back up the SSH copies
+before pulling.** Fetching alone does not change the working files. From the
+SSH repository directory:
 
 ```sh
 git status --short
 git fetch origin
+git show origin/master:scripts/maintenance/backup_removed_outputs.py > /tmp/agn-backup-removed-outputs.py
+python3 /tmp/agn-backup-removed-outputs.py --revision origin/master
 git pull --ff-only origin master
 ```
+
+The helper identifies outputs deleted by the pending update, creates a verified
+archive under `.local_backups/`, and preserves symlinks as links without copying
+their underlying datasets. Check its success message before pulling. It does
+not delete or reset anything. The pull will remove the previously tracked
+output paths from the SSH working tree; their contents remain in the backup.
+Ignored datasets and other untracked outputs are not removed by this cleanup.
+The helper reports no removals on subsequent updates that do not delete outputs.
 
 This updates the currently checked-out branch only if a fast-forward is possible.
 If Git reports local changes or diverging commits, preserve that work and resolve

@@ -1,9 +1,9 @@
 # Train on wavelength cubes
 
 **Historical experiment:** the active direction is now a single 2D narrowband
-image. See [NARROWBAND_TRAINING.md](NARROWBAND_TRAINING.md) for the current
-passband integration pipeline. The cube trainer below remains available as an
-experimental reference.
+image. See [NARROWBAND_TRAINING.md](NARROWBAND_TRAINING.md) for the F502N branch
+and [F187N_TRAINING_READINESS.md](F187N_TRAINING_READINESS.md) for the current
+F187N pilot status. The cube trainer below remains an experimental reference.
 
 The learning input is a full channel-first cube `(96,256,256)`, not an
 integrated F502N image. The output is one projected geometric cone mask

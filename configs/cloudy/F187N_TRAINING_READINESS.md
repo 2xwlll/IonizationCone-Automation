@@ -1,0 +1,49 @@
+# F187N diagnostic-pilot readiness
+
+Checked 2026-11-02. This status concerns one-channel F187N images and their
+nominal projected geometric masks using `circular_cone_envelope_v2`.
+
+**The U-Net architecture accepts the corrected image, but the F187N training
+experiment is not configured for launch yet.** Existing optical/spectral
+experiments must not silently stand in for this dataset.
+
+## Verified
+
+- The corrected config is `ngc1068_f187n_soft_gas_projection_v2.json`.
+- Its saved pair is a finite 256 x 256 F187N image and binary geometric mask.
+- The existing `UNet(in_channels=1, out_channels=1)` with default encoder
+  widths [64,128,256,512] produces finite logits of shape (1,1,256,256) from
+  that image on CPU.
+- This was a randomly initialized forward check only. No optimizer step,
+  training, accuracy evaluation, checkpoint fitting or SSH GPU check was run.
+  Per-image standardization was used for the compatibility check, not adopted
+  as the final training normalization.
+- The local report and input/model hashes are saved in
+  `results/cloudy/f187n_training_readiness_v1/readiness.json` (ignored output).
+
+## Remaining launch requirements
+
+1. Generate a modest corrected population with smooth, clumpy and contaminated
+   cases, explicit angle ranges and retained components. Currently the corrected
+   example supplies one realization, not a training population.
+2. Prepare a deterministic manifest grouping variants of each physical
+   realization together across train/validation/test assignments. Record band,
+   projection, labels, normalization and input hashes.
+3. Add an explicit F187N training entry point/configuration accepting one image
+   channel and the exact manifest. Specify loss, optimizer, seed and evaluation
+   against the geometric baseline, including angle errors and mask overlap.
+4. Verify the required grids, reference, PSF, dataset and environment on the
+   training host; then run a one-batch computation/optimizer check before an
+   authorized diagnostic training pilot.
+
+`scripts/2d/train.py` currently uses name-similarity selection for an old
+`synthetic_oiii_realistic` dataset. It is not an explicit F187N launcher.
+`scripts/cloudy/train_oiii_cube.py` defaults to 96 observed-wavelength channels
+and validates a spectral-cube manifest. Its historical smoke test is not a
+F187N readiness check. Removing old plot files changes neither of these facts.
+
+The current F187N image still uses its recorded older spectral grids; geometry
+correction does not replace their spectra or resolve convergence limitations.
+Those limits must remain explicit in any pilot conclusions. Recoverability
+of prescribed synthetic geometry is the first experimental question, not a
+claim of validated real-galaxy segmentation.
