@@ -10,8 +10,9 @@ and spectral-cube workflows remain separate research branches of the code.
 See [repository and SSH synchronization](docs/REPOSITORY_SYNC.md) for what Git
 transfers and which research inputs must be copied separately.
 The [F187N training readiness check](configs/cloudy/F187N_TRAINING_READINESS.md)
-distinguishes the working U-Net architecture from the dataset and explicit
-training configuration that still need preparation.
+records the local pipeline checks and remaining cluster verification.
+Use [F187N ARC setup](docs/F187N_ARC_SETUP.md) for the explicit F187N dataset,
+environment, and Slurm training workflow.
 
 Saved NGC 1068 parameters, source settings, previews, and local data links are in
 [saved_runs/ngc1068_20260514](saved_runs/ngc1068_20260514/README.md).

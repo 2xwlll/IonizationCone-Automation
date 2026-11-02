@@ -1,0 +1,7 @@
+# Tested scientific packages. Use Python 3.12 and install the selected PyTorch
+# CPU/CUDA build separately; see docs/F187N_ARC_SETUP.md.
+numpy==2.4.4
+scipy==1.17.1
+astropy==7.2.0
+matplotlib==3.10.8
+tqdm==4.67.3

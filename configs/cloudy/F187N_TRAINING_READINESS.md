@@ -3,11 +3,33 @@
 Checked 2026-11-02. This status concerns one-channel F187N images and their
 nominal projected geometric masks using `circular_cone_envelope_v2`.
 
-**The U-Net architecture accepts the corrected image, but the F187N training
-experiment is not configured for launch yet.** Existing optical/spectral
+**The explicit F187N pipeline now passes a local end-to-end check. ARC setup,
+GPU verification, and the controlled 64-group pilot remain pending.** Follow
+[F187N ARC setup](../../docs/F187N_ARC_SETUP.md). Existing optical/spectral
 experiments must not silently stand in for this dataset.
 
-## Verified
+## Latest local check
+
+- `prepare_f187n_dataset.py` generated three independent groups with three
+  matched variants each, one group per split. Source/input hashes, component
+  diagnostics, geometry, and grouped train/validation/test assignments are saved.
+- `train_f187n_pilot.py` passed a CPU forward/backward/optimizer check and one
+  epoch through validation, checkpoint selection/reload, and held-out reporting
+  against the angular-excess baseline. This is a pipeline demonstration, not
+  evidence of segmentation accuracy.
+- The pilot uses one 256 × 256 channel, invertible signed-asinh normalization,
+  nominal projected masks, and a smaller U-Net with widths [16,32,64,128].
+- Reports are in ignored `results/cloudy/f187n_pipeline_check_smoke_v1` and
+  `results/cloudy/f187n_pipeline_check_epoch_v1`; the dataset is in ignored
+  `data/cloudy/f187n_pipeline_check_v1`. Unit tests passed (73 tests).
+- The default dataset configuration specifies 64 groups, with 40/12/12 grouped
+  splits. This larger dataset and its 30-epoch training have **not** been run.
+- The ARC recipe targets the user-confirmed Anaconda module and A100 partition.
+  Local tests do not establish remote package/driver compatibility or access.
+
+## Earlier architecture-only check (historical)
+
+### Verified at that earlier stage
 
 - The corrected config is `ngc1068_f187n_soft_gas_projection_v2.json`.
 - Its saved pair is a finite 256 x 256 F187N image and binary geometric mask.
@@ -21,7 +43,10 @@ experiments must not silently stand in for this dataset.
 - The local report and input/model hashes are saved in
   `results/cloudy/f187n_training_readiness_v1/readiness.json` (ignored output).
 
-## Remaining launch requirements
+### Requirements identified at that earlier stage
+
+Items 1–3 now have explicit implementations and a three-group local check;
+population generation at the planned scale and item 4 remain pending on ARC.
 
 1. Generate a modest corrected population with smooth, clumpy and contaminated
    cases, explicit angle ranges and retained components. Currently the corrected

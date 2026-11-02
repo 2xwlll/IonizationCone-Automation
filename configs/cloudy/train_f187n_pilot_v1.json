@@ -1,0 +1,13 @@
+{
+  "variant": "full",
+  "features": [16, 32, 64, 128],
+  "batch_size": 4,
+  "epochs": 30,
+  "learning_rate": 0.0001,
+  "pos_weight": 1.0,
+  "seed": 42,
+  "num_workers": 0,
+  "cpu_threads": 4,
+  "mixed_precision": true,
+  "status": "Diagnostic recovery experiment; not real-galaxy validation"
+}
