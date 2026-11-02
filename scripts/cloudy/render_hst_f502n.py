@@ -12,9 +12,16 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
+import warnings
 
 import numpy as np
 from scipy.ndimage import gaussian_filter, zoom
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from src.simple_utils.synthetic_photometry import (
+    integrate_bandpass, photon_bandpass_weights,
+)
 
 
 DEFAULT_O3 = Path(
@@ -35,20 +42,26 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--throughput", type=Path, default=Path(
         "configs/instruments/hst_wfpc2_pc_f502n.csv"))
     p.add_argument("--output", type=Path, default=Path(
-        "data/cloudy/ngc1068_oiii_full_v1/ngc1068_f502n_pair.npz"))
+        "data/cloudy/ngc1068_f502n_v2/ngc1068_f502n_pair.npz"))
     p.add_argument("--preview", type=Path, default=Path(
-        "results/cloudy/ngc1068_f502n_pair_preview.png"))
+        "results/cloudy/ngc1068_f502n_v2/preview.png"))
     p.add_argument("--reference-f502n", type=Path, default=DEFAULT_O3)
     p.add_argument("--reference-f547m", type=Path, default=DEFAULT_CONT)
     p.add_argument("--seed", type=int, default=1068)
     p.add_argument("--target-psf-fwhm", type=float, default=0.10,
                    help="Final PSF FWHM in arcsec")
-    p.add_argument("--input-psf-fwhm", type=float, default=0.075,
-                   help="PSF already present in the input cube")
+    p.add_argument("--input-psf-fwhm", type=float, default=None,
+                   help="Override source metadata PSF FWHM in arcsec")
     p.add_argument("--pixel-scale", type=float, default=0.045528,
                    help="Output arcsec per pixel")
-    p.add_argument("--input-pixel-scale", type=float, default=0.04,
-                   help="Input cube arcsec per pixel")
+    p.add_argument("--input-pixel-scale", type=float, default=None,
+                   help="Override source metadata arcsec per pixel")
+    p.add_argument("--allow-partial-bandpass", action="store_true",
+                   help="Permit a truncated legacy spectrum; records missing coverage")
+    p.add_argument("--continuum-flambda-slope", type=float, default=0.0,
+                   help="Local continuum F_lambda power-law slope around 5013 Angstrom")
+    p.add_argument("--dust-wavelength-exponent", type=float, default=1.3,
+                   help="Pilot foreground continuum tau(lambda) proportional to lambda^-exponent")
     return p.parse_args()
 
 
@@ -132,6 +145,18 @@ def synthetic_stellar_continuum(
 
 def main() -> None:
     args = parse_args()
+    source_metadata = json.loads(args.cube.with_suffix(".json").read_text())
+    input_psf = (args.input_psf_fwhm if args.input_psf_fwhm is not None
+                 else float(source_metadata.get("psf_fwhm_arcsec", 0.075)))
+    input_pixel_scale = (args.input_pixel_scale if args.input_pixel_scale is not None
+                         else float(source_metadata["pixel_scale_arcsec"]))
+    if (input_psf < 0 or args.target_psf_fwhm < input_psf
+            or args.pixel_scale <= 0 or input_pixel_scale <= 0):
+        raise ValueError("Positive pixel scales and target PSF >= source PSF are required")
+    if source_metadata.get("wavelength_frame", "observed") != "observed":
+        raise ValueError("Source wavelength axis must already be in the observed frame")
+    if source_metadata.get("normalization", {}).get("transform", "linear") != "linear":
+        raise ValueError("Integrate source flux, not an asinh/log training tensor")
     rng = np.random.default_rng(args.seed)
     with np.load(args.cube) as data:
         cube = data["input"].astype(np.float64)
@@ -143,21 +168,39 @@ def main() -> None:
     filter_wave, filter_throughput = load_curve(args.throughput)
     throughput = np.interp(wavelength, filter_wave, filter_throughput,
                            left=0.0, right=0.0)
-    dlambda = np.gradient(wavelength)
-    # For a photon-counting detector, counts are proportional to F_lambda*T*lambda.
-    weights = throughput*wavelength*dlambda
-    gas = np.tensordot(weights, cube, axes=(0, 0))
-    spatial_factor = args.input_pixel_scale/args.pixel_scale
+    gas, weights, coverage = integrate_bandpass(
+        cube, wavelength, filter_wave, filter_throughput,
+        minimum_coverage=0.0 if args.allow_partial_bandpass else 0.999)
+    if coverage < 0.999:
+        warnings.warn(f"Legacy cube omits {100*(1-coverage):.4f}% of the "
+                      "tabulated flat-continuum photon response", stacklevel=1)
+    raw_gas = gas.copy()
+    spatial_factor = input_pixel_scale/args.pixel_scale
     gas = match_pixel_scale(gas, spatial_factor, order=1)
     mask = match_pixel_scale(mask, spatial_factor, order=0)
     # Preserve an explicit nucleus bridge under pixel-scale conversion. This
     # makes a bicone one component even with strict 4-neighbour connectivity.
     center = mask.shape[0]//2
     mask[center-2:center+3, center-2:center+3] = 1.0
-    gas /= max(float(np.percentile(gas, 99.8)), 1e-12)
+    gas_response_scale = max(float(np.percentile(gas, 99.8)), 1e-12)
+    gas /= gas_response_scale
 
     size = gas.shape[0]
     continuum, continuum_attenuation = synthetic_stellar_continuum(size, rng)
+    # Integrate a local continuum SED through the full tabulated passband.
+    # Morphology is synthetic; this is not a stellar-population/dust-material SED.
+    continuum_pivot = 5013.2385
+    continuum_weights = photon_bandpass_weights(filter_wave, filter_wave,
+                                                filter_throughput)
+    intrinsic_continuum = continuum/continuum_attenuation
+    tau_pivot = -np.log(continuum_attenuation)
+    continuum = np.zeros_like(continuum)
+    for current_wave, weight in zip(filter_wave, continuum_weights):
+        ratio = current_wave/continuum_pivot
+        sed = ratio**args.continuum_flambda_slope
+        screen = np.exp(-tau_pivot*ratio**(-args.dust_wavelength_exponent))
+        continuum += weight*intrinsic_continuum*sed*screen
+    continuum /= continuum_weights.sum()
     continuum /= max(float(np.percentile(continuum, 99.8)), 1e-12)
 
     real_o3 = centered_reference(args.reference_f502n, size)
@@ -168,12 +211,14 @@ def main() -> None:
     photflam_ratio = 7.595041e-18/2.943716e-16
     continuum_peak = min(cont_bright*photflam_ratio, 0.75*ref_bright)
     gas_peak = max(ref_bright-continuum_peak, 4*ref_noise)
-    clean = ref_sky + gas_peak*gas + continuum_peak*continuum
-
-    extra_fwhm = np.sqrt(max(args.target_psf_fwhm**2-
-                             args.input_psf_fwhm**2, 0.0))
+    # Source gas is already blurred. The new continuum is not, so each needs
+    # its own kernel to reach the same final FWHM without double blurring gas.
+    extra_fwhm = np.sqrt(max(args.target_psf_fwhm**2-input_psf**2, 0.0))
     extra_sigma_px = extra_fwhm/args.pixel_scale/2.35482
-    clean = gaussian_filter(clean, extra_sigma_px)
+    full_sigma_px = args.target_psf_fwhm/args.pixel_scale/2.35482
+    gas_observed = gaussian_filter(gas_peak*gas, extra_sigma_px)
+    continuum_observed = gaussian_filter(continuum_peak*continuum, full_sigma_px)
+    clean = ref_sky + gas_observed + continuum_observed
 
     # Drizzled HST reference pixels contain correlated, approximately Gaussian
     # background noise.  Match its robust amplitude and correlation scale.
@@ -185,10 +230,13 @@ def main() -> None:
     np.savez_compressed(
         args.output, input=observed, mask=mask, clean=clean.astype(np.float32),
         filter_integrated_gas=gas.astype(np.float32),
-        stellar_continuum=(continuum_peak*continuum).astype(np.float32),
+        filter_integrated_gas_raw=raw_gas.astype(np.float64),
+        gas_observed=gas_observed.astype(np.float32),
+        stellar_continuum=continuum_observed.astype(np.float32),
         continuum_attenuation=continuum_attenuation.astype(np.float32),
         wavelength_angstrom=wavelength.astype(np.float32),
         filter_throughput=throughput.astype(np.float32),
+        photon_integration_weights=weights,
     )
     pair_root = args.output.parent/"f502n_training_pair"
     (pair_root/"images").mkdir(parents=True, exist_ok=True)
@@ -198,12 +246,32 @@ def main() -> None:
 
     metadata = {
         "shape": list(observed.shape), "axis_order": ["y", "x"],
+        "throughput_file": str(args.throughput),
         "filter": "HST/WFPC2-PC.F502N", "pixel_scale_arcsec": args.pixel_scale,
-        "input_pixel_scale_arcsec": args.input_pixel_scale,
+        "input_pixel_scale_arcsec": input_pixel_scale,
+        "input_psf_fwhm_arcsec": input_psf,
         "target_psf_fwhm_arcsec": args.target_psf_fwhm,
         "reference_sky_counts": ref_sky, "reference_noise_counts": ref_noise,
         "reference_bright_counts": ref_bright,
         "continuum_peak_counts": continuum_peak, "gas_peak_counts": gas_peak,
+        "source_cube": str(args.cube), "source_metadata": source_metadata,
+        "spectral_integration": {
+            "formula": "integral F_lambda*T(lambda)*lambda/(h*c) d(lambda)",
+            "method": "piecewise-linear source and throughput; two-point Gaussian quadrature",
+            "wavelength_frame": "observed; no second redshift applied",
+            "photon_response_coverage": coverage,
+            "partial_bandpass_allowed": args.allow_partial_bandpass,
+            "response_scale_before_empirical_calibration": gas_response_scale,
+            "source_limits_angstrom": [float(wavelength[0]), float(wavelength[-1])],
+            "filter_table_limits_angstrom": [float(filter_wave[0]), float(filter_wave[-1])],
+        },
+        "stellar_continuum_model": {
+            "type": "synthetic morphology with local power-law F_lambda approximation",
+            "pivot_angstrom": continuum_pivot, "flambda_slope": args.continuum_flambda_slope,
+            "foreground_tau_wavelength_exponent": args.dust_wavelength_exponent,
+        },
+        "psf_model": "constant Gaussian approximation; not a measured WFPC2 PSF",
+        "photometric_calibration": "empirical reference-array scaling; normalized source is not absolute physical flux",
         "seed": args.seed,
     }
     args.output.with_suffix(".json").write_text(json.dumps(metadata, indent=2))
@@ -214,7 +282,7 @@ def main() -> None:
     def shown(a: np.ndarray) -> np.ndarray:
         lo, hi = np.percentile(a, [5, 99.7])
         return np.arcsinh(np.clip((a-lo)/(hi-lo+1e-12), 0, None)*8)
-    panels = [real_o3, gas, continuum_peak*continuum, clean, observed, mask]
+    panels = [real_o3, gas_observed, continuum_observed, clean, observed, mask]
     titles = ["Real NGC 1068 F502N", "Cloudy through F502N",
               "Stellar + nuclear continuum", "Synthetic clean",
               "Synthetic observed", "Geometric target mask"]
@@ -227,6 +295,7 @@ def main() -> None:
     fig.savefig(args.preview, dpi=170)
     plt.close(fig)
     print(f"Saved 2D pair {observed.shape} to {args.output}")
+    print(f"Photon response coverage: {100*coverage:.6f}%")
     print(f"Saved preview to {args.preview}")
 
 

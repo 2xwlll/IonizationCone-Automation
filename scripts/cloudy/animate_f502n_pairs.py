@@ -34,13 +34,13 @@ def arguments() -> argparse.Namespace:
     p.add_argument("--count", type=int, default=6)
     p.add_argument("--seed", type=int, default=1068)
     p.add_argument("--config", type=Path,
-                   default=Path("configs/cloudy/ngc1068_oiii_v1.json"))
+                   default=Path("configs/cloudy/ngc1068_f502n_v2.json"))
     p.add_argument("--grid", type=Path,
-                   default=Path("data/cloudy/ngc1068_oiii_full_v1/grid.npz"))
+                   default=Path("data/cloudy/ngc1068_f502n_v2/grid.npz"))
     p.add_argument("--data-dir", type=Path,
-                   default=Path("data/cloudy/ngc1068_f502n_gif_v1"))
+                   default=Path("data/cloudy/ngc1068_f502n_gif_v2"))
     p.add_argument("--output-dir", type=Path,
-                   default=Path("results/cloudy/ngc1068_f502n_gifs"))
+                   default=Path("results/cloudy/ngc1068_f502n_gifs_v2"))
     p.add_argument("--duration-ms", type=int, default=1500,
                    help="Duration per independent galaxy example")
     args = p.parse_args()
@@ -185,7 +185,7 @@ def main() -> None:
         cube = source["input"].astype(np.float64)
         wave = source["wavelength_angstrom"]
     throughput = d["filter_throughput"]
-    weights = throughput*wave*np.gradient(wave)
+    weights = d.get("photon_integration_weights", throughput*wave*np.gradient(wave))
     factor = m["input_pixel_scale_arcsec"]/m["pixel_scale_arcsec"]
     total = match_pixel_scale(np.tensordot(weights, cube, axes=(0, 0)), factor, 1)
     flux_scale = max(float(np.percentile(total, 99.8)), 1e-12)

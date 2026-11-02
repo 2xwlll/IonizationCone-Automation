@@ -4,6 +4,12 @@ Automated machine learning pipeline for detecting and segmenting ionization cone
 
 ## Overview
 
+Current F187N projection conventions and the corrected pilot are documented in
+[F187N cone geometry](configs/cloudy/F187N_CONE_GEOMETRY.md). The older optical
+and spectral-cube workflows remain separate research branches of the code.
+See [repository and SSH synchronization](docs/REPOSITORY_SYNC.md) for what Git
+transfers and which research inputs must be copied separately.
+
 Saved NGC 1068 parameters, source settings, previews, and local data links are in
 [saved_runs/ngc1068_20260514](saved_runs/ngc1068_20260514/README.md).
 

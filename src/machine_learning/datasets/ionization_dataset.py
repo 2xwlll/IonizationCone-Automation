@@ -4,18 +4,22 @@ import torch
 from torch.utils.data import Dataset
 
 class IonizationConeDataset2D(Dataset):
-    def __init__(self, image_dir, mask_dir, transform=None, normalize=True):
+    def __init__(self, image_dir, mask_dir, transform=None, normalize=True,
+                 expected_channels=None):
         """
         Args:
             image_dir (str): Directory containing .npy images
             mask_dir (str): Directory containing .npy masks
             transform (callable, optional): joint transform (image+mask)
             normalize (bool): apply per-image normalization
+            expected_channels (int, optional): reject inputs with another
+                channel count, including an accidentally integrated 2D image
         """
         self.image_dir = image_dir
         self.mask_dir = mask_dir
         self.transform = transform
         self.normalize = normalize
+        self.expected_channels = expected_channels
 
         # --- Collect files ---
         image_files = [f for f in os.listdir(image_dir) if f.endswith(".npy")]
@@ -75,6 +79,12 @@ class IonizationConeDataset2D(Dataset):
         # Grayscale images need a channel; cubes already use wavelength as it.
         if image.ndim == 2:
             image = np.expand_dims(image, axis=0)
+        if (self.expected_channels is not None
+                and image.shape[0] != self.expected_channels):
+            raise ValueError(
+                f"Expected {self.expected_channels} input channels, got "
+                f"{image.shape[0]} in {img_file}"
+            )
         mask  = np.expand_dims(mask, axis=0)
 
         image = torch.from_numpy(image)
@@ -82,8 +92,9 @@ class IonizationConeDataset2D(Dataset):
 
         # --- Joint transform ---
         if self.transform:
+            channels = image.shape[0]
             stacked = torch.cat([image, mask], dim=0)
             stacked = self.transform(stacked)
-            image, mask = stacked[0:1], stacked[1:2]
+            image, mask = stacked[:channels], stacked[channels:channels+1]
 
         return image, mask

@@ -1,0 +1,81 @@
+{
+  "schema": "observed_projected_cone_reference_v1",
+  "status": "candidate morphology reference; not a renderer configuration or a physical intrinsic-angle prior",
+  "target": "NGC 1068",
+  "measurement_source": "results/cloudy/ngc1068_observed_cone_v1/measurements.json",
+  "measurement_sha256": "4d473395a6436bac1f56fc0deec99195bd20cfc5429ce110dce85ae110bc4ab5",
+  "tracer": "HST F502N minus empirically scaled F547M",
+  "center_ra_dec_deg": [
+    40.66962166666667,
+    -0.01329444444445471
+  ],
+  "angle_convention": "projected sky PA east of north; opening is full unless explicitly marked half",
+  "nominal_primary": {
+    "pa_east_of_north_deg": 27.0,
+    "opening_full_deg": 120.0,
+    "opening_half_deg": 60.0,
+    "edge_start_pa_deg": 327.0,
+    "edge_end_pa_deg": 87.0,
+    "positive_profile_sum": 1.5177056196429883
+  },
+  "nominal_counter": {
+    "pa_east_of_north_deg": 192.0,
+    "opening_full_deg": 30.0,
+    "opening_half_deg": 15.0,
+    "edge_start_pa_deg": 177.0,
+    "edge_end_pa_deg": 207.0,
+    "positive_profile_sum": 0.27034227140680794
+  },
+  "nominal_settings": {
+    "inner_arcsec": 0.7,
+    "outer_arcsec": 3.7,
+    "smoothing_sigma_arcsec": 0.1,
+    "angular_bins_deg": 3.0,
+    "angular_smoothing_sigma_deg": 5.0,
+    "relative_edge_threshold": 0.2,
+    "radial_bins": 12,
+    "profile": "median over radial-bin medians of signed smoothed residual",
+    "primary_selection": "largest positive angular-profile sum among contiguous 15-160 degree sectors; no angle prior"
+  },
+  "analysis_sensitivity": {
+    "pa_min_max_deg": [
+      22.5,
+      37.5
+    ],
+    "full_opening_min_max_deg": [
+      72.0,
+      156.0
+    ],
+    "meaning": "range across explicit analysis choices, not statistical confidence or an intrinsic cone-angle distribution"
+  },
+  "existing_synthetic_comparison": {
+    "configuration": "configs/cloudy/ngc1068_f187n_soft_gas_v1.json",
+    "configuration_sha256": "4e5cfce309246bf7159197391fa2625d0818258f9779ed658537ad90984eb2bc",
+    "input_geometry": {
+      "position_angle_east_of_north_deg": 30.0,
+      "inclination_deg": 45.0,
+      "opening_half_angle_deg": 35.0,
+      "radius_fraction": 0.85
+    },
+    "projected_full_opening_deg_using_current_prescription": 89.43822878487791,
+    "interpretation": "Within analysis-sensitivity ranges; not statistical validation or an inclination constraint"
+  },
+  "synthetic_use": {
+    "use": [
+      "candidate sky orientation",
+      "apparent support-width sensitivity",
+      "observed spatial morphology and radial dependence for comparison"
+    ],
+    "do_not_use": [
+      "F187N component amplitude calibration",
+      "intrinsic half-angle without inclination/projection model",
+      "pasted real pixels labeled as independent simulations"
+    ],
+    "evaluation": "NGC 1068 becomes a calibration reference when used to tune generation; reserve other data for independent validation",
+    "generator_changes_applied": false
+  },
+  "f187n_observed_cone_fraction": null,
+  "f187n_observed_other_over_cone_M": null,
+  "no_flux_decomposition_reason": "F187N has no matched near-IR continuum subtraction in this analysis; optical sectors only constrain candidate spatial support",
+  "documentation": "configs/cloudy/NGC1068_OBSERVED_CONE.md"
+}

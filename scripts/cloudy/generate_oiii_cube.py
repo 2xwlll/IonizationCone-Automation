@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Project a Cloudy emissivity grid into a wavelength-resolved 2D bicone.
+"""Project a Cloudy grid into an internal (wavelength,y,x) source spectrum.
 
-The output input array has shape ``(wavelength, y, x)``.  A conventional 2D
-U-Net treats wavelength bins as input channels and predicts one ``(y, x)``
-geometric mask.
+The active narrowband pipeline integrates this intermediate through an
+instrument passband to produce one 2D U-Net input and a geometric 2D mask.
 """
 
 from __future__ import annotations
@@ -247,6 +246,13 @@ def main() -> None:
     metadata = {
         "shape": list(cube.shape),
         "axis_order": ["wavelength", "y", "x"],
+        "wavelength_frame": "observed",
+        "psf_fwhm_arcsec": cfg["psf_fwhm_arcsec"],
+        "velocity_dispersion_kms": cfg["velocity_dispersion_kms"],
+        "maximum_outflow_kms": cfg["maximum_outflow_kms"],
+        "source_configuration": str(args.config),
+        "normalization": {"transform": "linear", "shared_scale": scale},
+        "flux_units": "normalized projected Cloudy flux; not absolutely calibrated observer flux",
         "redshift": z,
         "pixel_scale_arcsec": cfg["pixel_scale_arcsec"],
         "distance_mpc": cfg["distance_mpc"],

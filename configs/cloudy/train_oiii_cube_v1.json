@@ -1,0 +1,15 @@
+{
+  "dataset": "data/cloudy/ngc1068_spectral_training_v1",
+  "results": "results/cloudy/spectral_unet",
+  "input_channels": 96,
+  "spatial_shape": [256, 256],
+  "features": [16, 32, 64, 128],
+  "batch_size": 2,
+  "epochs": 30,
+  "learning_rate": 0.0001,
+  "pos_weight": 1.0,
+  "seed": 42,
+  "num_workers": 0,
+  "cpu_threads": 4,
+  "mixed_precision": true
+}

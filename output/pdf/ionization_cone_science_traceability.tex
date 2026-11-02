@@ -1,0 +1,317 @@
+% Self-contained source. Compile twice with pdflatex; no figures or .bib needed.
+% Project snapshot: 2026-10-30. Evidence paths are relative to repository root.
+\documentclass[10pt,letterpaper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[margin=0.7in]{geometry}
+\usepackage{pdflscape,longtable,booktabs,array}
+\usepackage[table]{xcolor}
+\usepackage{amsmath,amssymb}
+\usepackage{enumitem}
+\usepackage{microtype}
+\usepackage{fancyhdr}
+\usepackage{xurl}
+\usepackage[colorlinks=true,linkcolor=blue!45!black,urlcolor=blue!45!black]{hyperref}
+\definecolor{ink}{HTML}{17324D}
+\definecolor{pale}{HTML}{EAF0F5}
+\definecolor{muted}{HTML}{465564}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[L]{\small\color{muted}Ionization Cone Automation \quad | \quad Research status: 30 October 2026}
+\fancyfoot[R]{\small\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0.3pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+\setlength{\emergencystretch}{2em}
+\setlist[itemize]{leftmargin=1.3em,itemsep=3pt,topsep=3pt}
+\setlist[enumerate]{leftmargin=1.5em,itemsep=3pt,topsep=3pt}
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcommand{\ev}[1]{\textcolor{ink}{\textbf{[#1]}}}
+\newcommand{\status}[1]{\textbf{#1.}}
+\newcommand{\oiii}{[O\,\textsc{iii}]}
+\newcommand{\hii}{H\,\textsc{ii}}
+\newcommand{\paalpha}{Pa$\alpha$}
+\newcommand{\pathref}[1]{{\small\nolinkurl{#1}}}
+
+\begin{document}
+\begin{landscape}
+{\LARGE\bfseries\color{ink} Science Traceability Matrix}\par
+{\large Physically motivated synthetic imaging and automated AGN ionization-cone recovery}\par
+\textbf{Science objective:} Determine when projected ionization-cone morphology can be recovered from emission images despite
+overlapping light, cloud structure, extinction, finite resolution, and noise.
+
+\textbf{Scope:} Recent work emphasizes 2D JWST F187N simulations and an observed NGC\,1068 reference;
+HST F502N/\oiii{} and the historical 96-channel training experiment remain distinct branches.
+\textbf{Status key:} \emph{Implemented} denotes a working method or diagnostic; \emph{pilot} denotes exploratory evidence;
+\emph{pending} denotes a scientific validation step. None alone means validated performance on real galaxies.
+
+\begingroup
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.16}
+\begin{longtable}{P{0.35in}P{1.35in}P{1.60in}P{1.82in}P{1.78in}P{2.10in}}
+\toprule
+\rowcolor{pale}
+\textbf{ID} & \textbf{Science question / objective} & \textbf{Required observables / quantities} &
+\textbf{Data and analysis method} & \textbf{Evidence and current status} & \textbf{Verification / remaining requirement} \\
+\midrule
+\endfirsthead
+\multicolumn{6}{l}{\textbf{Science traceability matrix (continued)}}\\[4pt]
+\toprule
+\rowcolor{pale}
+\textbf{ID} & \textbf{Science question / objective} & \textbf{Required observables / quantities} &
+\textbf{Data and analysis method} & \textbf{Evidence and current status} & \textbf{Verification / remaining requirement} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{6}{r}{\footnotesize Continued on the next page.}\\
+\endfoot
+\bottomrule
+\endlastfoot
+
+S1 & Define the geometry the network is intended to recover. &
+Projected mask, axis PA, half/full opening, radial extent, inclination convention, and emission extent. &
+Prescribed cone geometry; independent soft gas emission; explicit distinction between illumination, projected geometry, and detectable emission. &
+\status{Implemented / assumed} Nominal geometric labels exist; soft emission can cross their boundaries. \ev{E1,E2} &
+Audit projection and label recoverability. Do not interpret a projected mask as the intrinsic torus opening. Define any detectable-emission target separately. \\[5pt]
+\midrule
+
+S2 & Model the emitting populations that determine band morphology. &
+Line/nebular spectra versus gas state; AGN, host and \hii{} gas; stellar/nuclear continua; attenuation. &
+CLOUDY grids, dedicated \hii{} calculations, and prescribed spatial components; separate line, continuum, and population maps. &
+\status{Pilot} Components implemented; newer converged AGN spectral pilots exist separately from older image grids. \ev{E1,E3} &
+Trace each image to its actual grid. Resolve material convergence and missing-line issues; constrain relevant amplitudes and spectra. Inclusion is not validation. \\[5pt]
+\midrule
+
+S3 & Reproduce how instruments transform intrinsic emission into an image. &
+Band throughput, observed wavelengths, velocity shifts, PSF, pixel scale, and noise amplitudes. &
+Photon-weighted filter integration; air/vacuum conventions; spatial convolution and sampling. F187N uses an STPSF kernel and ERR-based correlated noise. &
+\status{Implemented / approximate} F502N integration tests and F187N component reconstruction checks exist. \ev{E1,E4,E5} &
+Keep band-specific operators distinct. Improve observation-specific PSF, detector noise, and absolute normalization where material; empirical scaling is not a luminosity calibration. \\[5pt]
+\midrule
+
+S4 & Anchor candidate geometry to observed NGC\,1068 structure. &
+Sky PA, apparent angular support, radial dependence, and sensitivity to analysis choices. &
+Observed HST F502N minus scaled F547M; WCS alignment with JWST F187N; angular profiles and 56 analysis trials. &
+\status{Measured candidate} 55 trials return a primary lobe; PA $22.5$--$37.5^\circ$, full width $72$--$156^\circ$. \ev{E6} &
+Ranges describe method sensitivity, not confidence intervals. Improve continuum subtraction/registration; optical support does not give F187N component fractions. \\[5pt]
+\midrule
+
+S5 & Quantify competing light and spatial complexity. &
+$M=B/C$ in a fixed aperture; cone light fraction; area where $B>C$; structure at stated angular scales. &
+Linear post-PSF component maps; exclude baseline/noise; Gaussian residual structure at $0.1$, $0.2$, $0.4$ arcsec sigma. &
+\status{Implemented} Five synthetic examples characterized; 10 diagnostic tests passed. $M=1.515$--$13.231$. \ev{E5} &
+Relate descriptors to actual recovery errors. Separate amplitude from structure. No universal difficulty score or observed NGC\,1068 $M$ has been established. \\
+\newpage
+
+S6 & Determine how spatial scale and noise limit recovery. &
+Projected extent/PSF FWHM; pixel sampling; per-pixel cone signal/noise; angular and physical lengths. &
+Optical-kernel core-width measurement; median cone/ERR; optional size conversion with a sourced angular-diameter distance. &
+\status{Implemented diagnostic} Resolution and noise summaries are saved; physical distance is not inferred automatically. \ev{E5} &
+Test controlled resolution/noise changes. Optical PSF width omits detector/drizzle effects; correlated pixels do not yield an independent-pixel integrated significance. \\[5pt]
+\midrule
+
+S7 & Constrain gas spectra and continuum against real data. &
+Line fluxes/ratios, continuum constraints, aperture/seeing, spectral quality and atmospheric transmission. &
+Published near-IR line constraints; archived ESO X-shooter spectra; preliminary telluric correction; matched slit/seeing extraction. &
+\status{Pilot / discrepancies retained} Converged spectral trials and slit comparisons exist; no complete F187N decomposition is established. \ev{E3,E7} &
+Use only supported wavelengths and matched apertures. Resolve line/continuum mismatches without filling gaps or arbitrary line rescaling; quantify remaining systematics. \\[5pt]
+\midrule
+
+S8 & Recover projected cone masks and angles automatically. &
+Dice/IoU, PA error, opening-angle error, and failure rate versus observability and complexity. &
+2D U-Net infrastructure, legacy real-image predictions, and a separate historical 96-channel cube training experiment. &
+\status{Demonstrated pipeline} A saved one-epoch cube run exists; it is not an F187N training result. \ev{E8,E9} &
+Prepare the current-band dataset and grouped splits; compare to a geometric baseline. Set justified performance targets before interpreting test results. \\[5pt]
+\midrule
+
+S9 & Establish generalization beyond the calibration example. &
+Independent physical realizations/conditions and galaxies; domain-shift and faint-boundary performance. &
+Split by underlying realization; keep filter/noise variants together. Reserve observations not used to tune generation. &
+\status{Pending scientific validation} Four F187N population scenarios are exploratory; NGC\,1068 is a calibration reference. \ev{E2,E8} &
+Document sampling distributions and independent holdouts. Seed variation alone on one grid/galaxy does not establish physical or observational generalization. \\[5pt]
+\midrule
+
+S10 & Make the scientific conclusions reproducible and auditable. &
+Inputs, code/grid versions, parameter choices, source hashes, masks, outputs, and failure records. &
+Saved configurations, component maps, manifests, signed residuals, sensitivity trials, and fresh output directories for reruns. &
+\status{Implemented practice} Versioned reports and an instruction record preserve assumptions and limitations. \ev{E5,E6,E7,E10} &
+Verify provenance for each release and keep failures. Evidence must distinguish a numerical check, an empirical assumption, and independent scientific validation. \\
+\end{longtable}
+\endgroup
+
+\textbf{Acceptance criteria:} Numerical invariants are tested where defined. No project-wide accuracy threshold,
+validated difficulty cutoff, or population-level scientific performance requirement has yet been adopted.
+Evidence identifiers are resolved in the repository evidence register at the end of this document.
+\end{landscape}
+
+\section*{Summary of work completed}
+\textit{The first-person summary below describes work evidenced by the repository as of 30 October 2026.
+It separates implemented methods and pilot results from scientific validation still required.}
+
+\subsection*{1. Established the simulation and learning framework}
+I developed a framework for generating synthetic ionization-cone images with known projected geometry,
+preparing segmentation inputs and labels, and applying U-Net models. The project includes optical
+F502N/\oiii{} work, a historical spectral-cube experiment, and the more recent F187N image branch.
+I preserved earlier NGC\,1068 extraction and prediction results rather than treating them as independent
+ground truth. A saved 96-channel experiment completed one training epoch using six examples split into
+four training, one validation, and one test example. This demonstrates the learning pipeline; it does
+not demonstrate reliable recovery on real galaxies or constitute training of the current F187N model.
+\ev{E8,E9}
+
+I clarified that the generator currently \emph{prescribes} the opening angle. Emission spectra and filter
+response determine how the chosen geometry appears. I distinguished intrinsic illumination geometry,
+projected geometric labels, and the threshold-dependent extent visible in an emission image. This
+provides an explicit interpretation for what the network is being asked to recover. \ev{E1,E10}
+
+\subsection*{2. Added emission physics and observing effects}
+I expanded the F187N pilots to include AGN-photoionized cone gas, low-ionization host gas, dedicated
+\hii{} emission, nebular continuum, stellar light, and compact nuclear continuum. The images include
+prescribed dust attenuation, cloud structure, velocity-dependent filter weighting, spatial blurring,
+pixel sampling, and approximate correlated noise. Separate component maps are saved so that image
+formation can be checked without confusing display transformations with physical quantities. \ev{E1,E4}
+
+I also completed small converged CLOUDY spectral pilots and comparisons with published near-IR line
+measurements. Those newer calculations remain distinct from the older cached grids used in existing
+images. Spectral disagreements, including iron and coronal-line mismatches, were recorded rather than
+removed through arbitrary line scaling. Archived ground-based spectra, preliminary atmospheric
+corrections, and slit/seeing-aware model extractions provide additional observational checks, while
+retaining unsupported wavelength intervals and registration uncertainties. \ev{E3,E7}
+
+\subsection*{3. Made image ``messiness'' measurable}
+I implemented separate measurements of competing light, spatial structure, resolution, and noise,
+instead of assigning an unvalidated combined difficulty score. Let $C$ denote cone-associated gas,
+$B$ the other explicitly listed model components, and $A$ the measurement aperture. The principal
+light ratios are
+\[
+ M=\frac{\sum_A B\,\Delta\Omega}{\sum_A C\,\Delta\Omega},
+ \qquad
+ f_{\rm cone}=\frac{\sum_A C\,\Delta\Omega}{\sum_A(C+B)\,\Delta\Omega}.
+\]
+The maps are linear, noiseless, and already passed through the filter and PSF. The initial ratios
+exclude the empirical baseline; other light is not necessarily non-AGN light. I also measure the
+fraction of aperture area where $B>C$ and the normalized smoothing residual
+\[
+ P_s(I)=\frac{\sum_A |I-G_s*I|\,\Delta\Omega}{\sum_A I\,\Delta\Omega},
+ \qquad s=0.1,\ 0.2,\ 0.4\ \mathrm{arcsec},
+\]
+separately for $C$ and $B$. Here $s$ is the Gaussian sigma. This structure statistic can respond to
+gradients and edges as well as knots; it is not a pure cloud-clumpiness measurement. \ev{E5}
+
+\clearpage
+\subsection*{4. Characterized the existing synthetic examples}
+I measured the original soft-gas pilot and four illustrative F187N population examples using the
+nominal cone mask intersected with $0.3<r<3.7$ arcsec and reference-valid pixels. The measurements
+below concern \emph{synthetic components}, not an observed decomposition of NGC\,1068. \ev{E5}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Synthetic example} & \textbf{$M$} & \textbf{$f_{\rm cone}$} & \textbf{Area with $B>C$}\\
+\midrule
+Original soft-gas pilot & 1.515 & 39.76\% & 82.53\%\\
+Population reference & 5.902 & 14.49\% & 97.18\%\\
+Variant 01 & 13.231 & 7.03\% & 99.65\%\\
+Variant 02 & 4.221 & 19.15\% & 96.69\%\\
+Variant 03 & 6.323 & 13.65\% & 96.88\%\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Ten tests passed for these diagnostics, covering known mixtures, normalization invariance, equal-flux
+images with different structure, pixel-area weighting, undefined cases, PSF widths, and component
+reconstruction. The examples differ in multiple parameters and component prescriptions, so the
+table is not a controlled causal experiment or a demonstrated ranking of segmentation difficulty.
+
+\subsection*{5. Extracted an observational morphology reference}
+I used the downloaded HST F502N and F547M images to construct a signed \oiii{} emission proxy, then
+measured its angular support in sky coordinates. I overlaid the candidate northern and southern
+sectors on the observed JWST F187N image using FITS WCS coordinates. The extraction does not use a
+U-Net prediction or a synthetic cone template to set the direction. \ev{E6}
+
+The nominal analysis gives a northern-sector PA of $27^\circ$ east of north and an apparent full width
+of $120^\circ$. Of 56 analysis trials, 55 return a primary candidate. Across those trials the PA spans
+$22.5$--$37.5^\circ$ and the full width spans $72$--$156^\circ$. These are sensitivity ranges under
+changes in subtraction, threshold, smoothing, radius, and center, not confidence intervals or a
+measurement of the intrinsic torus opening. Three extraction tests passed, and source hashes,
+signed subtraction, coverage, and WCS were checked.
+
+The existing soft-gas configuration has PA $30^\circ$ and produces a projected full width of about
+$89.44^\circ$ under its current prescription. These fall within the sensitivity ranges, but this is
+not statistical validation. The observed F187N image remains total band light: I have \emph{not}
+measured its cone fraction or its physical contamination ratio $M$ from this optical reference.
+
+\subsection*{6. Current scientific position and next milestone}
+The project now has a simulation framework, explicit label semantics, measurable image-complexity
+descriptors, and an observational morphology reference. The next milestone is a \textbf{controlled
+training pilot}, following an audit of the actual band/grid/labels and preparation of grouped data
+splits. The necessary next steps are to:
+\begin{enumerate}
+\item Resolve emission-model issues material to the selected band and constrain component strengths
+with suitable continuum or spectral data.
+\item Vary contamination, structure, resolution, and noise in controlled realizations; quantify
+whether the nominal geometric labels remain recoverable.
+\item Compare U-Net masks and angle errors with a geometric baseline, using independent conditions
+and observations for validation beyond the calibration example.
+\end{enumerate}
+No full 3D galaxy or torus simulation is required for that pilot. Scientific claims should remain
+limited to the assumptions and validation actually tested.
+
+\clearpage
+\section*{Repository evidence register}
+Paths are relative to the project root. These records support the matrix and summary; they are not
+independent observations merely because they occupy different files. This document is a dated
+snapshot, not a replacement for the underlying configurations and raw outputs.
+
+\small
+\begin{description}[style=nextline,leftmargin=2.5em,labelwidth=2em,itemsep=8pt]
+\item[E1] \textbf{F187N physical content and label assumptions.}\\
+\pathref{configs/cloudy/F187N_PHYSICS_CHECKLIST.md}\\
+\pathref{configs/cloudy/ngc1068_f187n_soft_gas_v1.json}
+
+\item[E2] \textbf{Exploratory population and empirical calibration.}\\
+\pathref{configs/cloudy/F187N_REFERENCE_POPULATION.md}\\
+\pathref{results/cloudy/f187n_population_pilot_v3/manifest.json}
+
+\item[E3] \textbf{Spectral constraints and separate converged pilots.}\\
+\pathref{configs/cloudy/NGC1068_SPECTRAL_CONSTRAINTS.md}\\
+\pathref{results/cloudy/ngc1068_spectral_constraints_v1/fit.json}
+
+\item[E4] \textbf{Image formation and passband verification.}\\
+\pathref{configs/cloudy/NARROWBAND_TRAINING.md}\\
+\pathref{scripts/cloudy/render_f187n_pilot.py}\\
+\pathref{results/cloudy/f187n_psf_nrcb4/metadata.json}
+
+\item[E5] \textbf{Complexity definitions, numerical results, and tests.}\\
+\pathref{configs/cloudy/F187N_COMPLEXITY.md}\\
+\pathref{results/cloudy/f187n_complexity_v1/metrics.json}\\
+\pathref{tests/test_image_complexity.py}
+
+\item[E6] \textbf{Observed cone extraction and analysis sensitivity.}\\
+\pathref{configs/cloudy/NGC1068_OBSERVED_CONE.md}\\
+\pathref{results/cloudy/ngc1068_observed_cone_v1/measurements.json}\\
+\pathref{configs/cloudy/ngc1068_observed_cone_reference_v1.json}\\
+\pathref{tests/test_observed_cone.py}
+
+\item[E7] \textbf{Ground-based spectral and slit comparison.}\\
+\pathref{configs/cloudy/NGC1068_SLIT_COMPARISON.md}\\
+\pathref{results/cloudy/ngc1068_slit_comparison_v2/README.md}\\
+\pathref{results/cloudy/ngc1068_telluric_dry_v1/summary.json}
+
+\item[E8] \textbf{Historical spectral training scope and saved run.}\\
+\pathref{configs/cloudy/SPECTRAL_TRAINING.md}\\
+\pathref{results/cloudy/spectral_unet/run_20261008_101500_813978/history.json}\\
+\pathref{results/cloudy/spectral_unet/run_20261008_101500_813978/dataset_manifest.json}
+
+\item[E9] \textbf{Preserved earlier geometry and prediction outputs.}\\
+\pathref{saved_runs/ngc1068_20260514/README.md}\\
+Earlier reported angles are script/image-coordinate results, not independently verified sky PAs.
+
+\item[E10] \textbf{Research conventions and reproducibility instructions.}\\
+\pathref{AGENTS.md}
+\end{description}
+
+\end{document}

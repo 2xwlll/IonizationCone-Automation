@@ -1,0 +1,63 @@
+{
+  "status": "illustrative hybrid pilot using a completed two-model stellar-ionized grid; not observationally fitted",
+  "redshift": 0.003793,
+  "grid": "data/cloudy/ngc1068_f187n_pilot_v1/grid.npz",
+  "reference": "results/cloudy/f187n_reference/nucleus_cutout.npz",
+  "psf": "results/cloudy/f187n_psf_nrcb4/kernel.npz",
+  "output": "results/cloudy/ngc1068_f187n_hii_nucleus_v1",
+  "spatial_pixels": 256,
+  "oversample": 3,
+  "geometry": {
+    "position_angle_east_of_north_deg": 30.0,
+    "inclination_deg": 45.0,
+    "opening_half_angle_deg": 35.0,
+    "radius_fraction": 0.85
+  },
+  "velocity": {
+    "maximum_kms": 900.0,
+    "sigma_kms": 85.0
+  },
+  "components": {
+    "host_low_u_gas_fraction": 0.1,
+    "foreground_tau_at_pa_alpha": 0.4,
+    "dust_exponent": 1.3,
+    "stellar_bulge_relative_to_gas_p99": 0.7,
+    "nuclear_peak_relative_to_gas_p99": 20.0
+  },
+  "noise": {
+    "correlation_sigma_pixels": 0.55
+  },
+  "seed": 1069,
+  "host_geometry": {
+    "position_angle_east_of_north_deg": 100.0,
+    "axis_ratio": 0.55,
+    "radial_decay": 3.0,
+    "log_u": -3.0,
+    "log_nh": 2.5,
+    "rotation_kms": 150.0
+  },
+  "nuclear_sed": {
+    "status": "illustrative obscured hot-dust plus power-law continuum; not fitted to NGC 1068",
+    "reference_rest_angstrom": 18751.0,
+    "hot_dust_temperature_k": 1100.0,
+    "hot_dust_fraction_at_reference": 0.9,
+    "powerlaw_alpha_nu": -0.5,
+    "tau_at_reference": 1.0,
+    "extinction_exponent": 1.3
+  },
+  "convert_cached_air_lines_to_vacuum": true,
+  "star_forming": {
+    "grid": "data/cloudy/hii_f187n_calculated_v2/grid.npz",
+    "model_index": 0,
+    "profile": "disk",
+    "scale_radius_arcsec": 1.6,
+    "axis_ratio": 0.65,
+    "position_angle_east_of_north_deg": 100.0,
+    "center_east_arcsec": 0.0,
+    "center_north_arcsec": 0.0,
+    "rotation_kms": 100.0,
+    "sigma_kms": 30.0,
+    "relative_to_agn_gas_p99": 0.3,
+    "status": "illustrative local H II disk, NOT the observed 15-20 arcsec starburst ring"
+  }
+}

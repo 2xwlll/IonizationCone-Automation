@@ -1,0 +1,15 @@
+{
+  "status": "exploratory stellar-ionized gas grid; blackbody ionizing source is not a stellar population synthesis model",
+  "redshift": 0.003793,
+  "stellar_temperature_k": [35000, 45000],
+  "log_u": [-3.5, -2.5],
+  "log_nh_cm3": [2.0, 3.0],
+  "metallicity_solar": [1.0],
+  "dust_scale": 1.0,
+  "log_column_density_cm2": 21.5,
+  "iteration_command": "iterate to convergence",
+  "references": [
+    "https://data.nublado.org/workshop/14Belfast/QuickStart.pdf",
+    "https://www.pa.uky.edu/~gary/CloudyWorkshop/CloudyWorkshop/18Thailand/day1/1_1_Cloudy_intro.pdf"
+  ]
+}

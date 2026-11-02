@@ -1,0 +1,26 @@
+{
+  "status": "relative pilot, not an observation-fitted galaxy model",
+  "redshift": 0.003793,
+  "grid": "data/cloudy/ngc1068_f187n_pilot_v1/grid.npz",
+  "reference": "results/cloudy/f187n_reference/nucleus_cutout.npz",
+  "psf": "results/cloudy/f187n_psf_nrcb4/kernel.npz",
+  "output": "results/cloudy/ngc1068_f187n_pilot_v1",
+  "spatial_pixels": 256,
+  "oversample": 3,
+  "geometry": {
+    "position_angle_east_of_north_deg": 30.0,
+    "inclination_deg": 45.0,
+    "opening_half_angle_deg": 35.0,
+    "radius_fraction": 0.85
+  },
+  "velocity": {"maximum_kms": 900.0, "sigma_kms": 85.0},
+  "components": {
+    "host_low_u_gas_fraction": 0.10,
+    "foreground_tau_at_pa_alpha": 0.4,
+    "dust_exponent": 1.3,
+    "stellar_bulge_relative_to_gas_p99": 0.7,
+    "nuclear_peak_relative_to_gas_p99": 20.0
+  },
+  "noise": {"correlation_sigma_pixels": 0.55},
+  "seed": 1069
+}

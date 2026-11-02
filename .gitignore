@@ -42,14 +42,16 @@ data/
 *.ckpt
 
 # =========================
-# Experiment outputs / results
-# (keep only plots if desired)
+# Experiment outputs / results (regenerate or transfer separately)
 # =========================
-results/**/*.pth
-results/**/*.pt
-results/**/*.ckpt
-results/**/*.npy
-results/**/*.fits
+/results/
+/saved_runs/
+
+# Keep the authored LaTeX source, not compiled documents or render previews.
+/output/*
+!/output/pdf/
+/output/pdf/*
+!/output/pdf/*.tex
 
 # =========================
 # Logs
