@@ -72,13 +72,20 @@ python -m pip install torch==2.11.0 --index-url https://download.pytorch.org/whl
 python scripts/maintenance/check_f187n_environment.py
 ```
 
+Wait for the allocated compute-node shell before loading Anaconda. ARC's Lmod
+explicitly rejects this module on login nodes; `hostname` should show a compute
+node such as `c002` before the `module load` step.
+
 Use the dedicated environment's Python for scientific commands. Job scripts
 activate it automatically. The CUDA wheel is listed in the official
 [PyTorch version table](https://pytorch.org/get-started/previous-versions/).
 CPU imports alone do not establish GPU/driver compatibility. Retain any Python,
 glibc, CUDA, or package error and resolve it before the main training run.
-The local CPU tests used Python 3.11.2 and torch 2.11.0+cu130; the proposed ARC
-Python 3.12/cu126 environment has not been tested locally or remotely.
+The local CPU tests used Python 3.11.2 and torch 2.11.0+cu130. The user has now
+verified ARC CPU imports on `c002`: Python 3.12.16, glibc 2.28, the pinned
+scientific packages, and torch 2.11.0+cu126. CUDA availability was false on that
+CPU node, as expected; GPU kernel execution remains pending. The scientific
+inputs were not present at that check and require the separate transfer below.
 
 ARC's live scheduler output supplied on 2026-11-05 advertises only 1 MiB per
 node in compute1/2/3 and gpu1a100. `compute1` reports `DefMemPerNode=UNLIMITED`,
@@ -112,18 +119,24 @@ use this v2 bundle even if the arrays have already been transferred. From the **
 in this repository:
 
 ```bash
-scp results/transfers/f187n_pilot_inputs_v2.tar.gz ppi246@arc.utsa.edu:~/f187n_pilot_inputs_v2.tar.gz
+scp results/transfers/f187n_pilot_inputs_v2.tar.gz ppi246@arc.utsa.edu:/work/ppi246/agn/f187n_pilot_inputs_v2.tar.gz
 ```
 
 Then on **ARC**, in the cloned repository, with the environment active:
 
 ```bash
-tar --keep-old-files -xzvf ~/f187n_pilot_inputs_v2.tar.gz
+ls -lh /work/ppi246/agn/f187n_pilot_inputs_v2.tar.gz
+tar --keep-old-files -xzvf /work/ppi246/agn/f187n_pilot_inputs_v2.tar.gz
 sha256sum -c data/cloudy/F187N_INPUTS_V2.sha256
 python scripts/maintenance/check_f187n_environment.py --inputs
 ```
 
 Existing files are protected by `--keep-old-files`; every checksum must pass.
+The `/work/ppi246/agn` parent already exists after environment creation. Use
+this explicit work path: a successful upload to `~/...` was not visible at the
+same home path on `c002` in the user's session. The exact cause of that home-path
+discrepancy is unresolved; do not infer a specific mount failure. UTSA documents
+[`/work` as available on all nodes](https://hpcsupport.utsa.edu/foswiki/bin/view/WebDocumentation/AboutArcCluster).
 Preserve any differing versions and resolve them before launching. The bundle
 contains the existing spectral grids, reference cutout, and PSF; it does not
 replace older spectra with converged grids or supply the full raw archive.
