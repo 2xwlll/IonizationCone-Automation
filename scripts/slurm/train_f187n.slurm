@@ -28,3 +28,5 @@ if [[ "${AGN_SMOKE_ONLY:-0}" == 1 ]]; then exit 0; fi
 python scripts/cloudy/train_f187n_pilot.py --dataset "$AGN_DATASET" \
   --output "$AGN_RUN" --device cuda --variant "${AGN_VARIANT:-full}" \
   --config "${AGN_TRAIN_CONFIG:-configs/cloudy/train_f187n_pilot_v2.json}"
+python scripts/cloudy/summarize_f187n_population.py --dataset "$AGN_DATASET" \
+  --training-report "$AGN_RUN/test_report.json" --output "$AGN_RUN/complexity_diagnostics"

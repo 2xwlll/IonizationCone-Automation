@@ -85,8 +85,10 @@ def test_report(model, loader, dataset, manifest, device, cfg):
 
                 primary = baseline['primary']
                 results.append({
-                    'id': row['id'], 'group': row['group'], 'variant': row['variant'],
+                    'id': row['id'], 'group': row['group'], 'variant': row['variant'], 'split':row['split'],
                     'cone_present': present, 'complexity': row['complexity'],
+                    'complexity_regions':row.get('complexity_regions'),
+                    'dust_diagnostics':row.get('dust_diagnostics'), 'categories':row.get('categories'),
                     'extent_over_optical_psf_fwhm': row['extent_over_optical_psf_fwhm'],
                     'target_geometry': expected,
                     'model_full_stamp': binary_scores(predicted[k], target, np.ones_like(valid)),

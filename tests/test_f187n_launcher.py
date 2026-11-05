@@ -20,7 +20,7 @@ class F187NLauncherTests(unittest.TestCase):
         (env/'bin').mkdir(parents=True);(env/'bin/python').write_text('test')
         for name in launcher.INPUTS:
             path=source/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(b'research input')
-        for name in ('configs/cloudy/f187n_dataset_pilot_v2.json','configs/cloudy/train_f187n_pilot_v2.json'):
+        for name in ('configs/cloudy/f187n_dataset_pilot_v3.json','configs/cloudy/train_f187n_pilot_v2.json'):
             path=source/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_text('{}')
         for name in ('scripts/slurm/generate_f187n.slurm','scripts/slurm/train_f187n.slurm','src/model.py'):
             path=source/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_text('# source\n')

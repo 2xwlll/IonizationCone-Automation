@@ -1,6 +1,6 @@
 # F187N generation and training on UTSA ARC
 
-Updated 2026-11-04. This workflow uses one-channel 256 × 256 F187N images and
+Updated 2026-11-05. This workflow uses one-channel 256 × 256 F187N images and
 nominal projected cone masks with `circular_cone_envelope_v2`. It includes
 paired cone-free controls. The [model/loss audit](../configs/cloudy/F187N_MODEL_AUDIT.md)
 records what was checked locally. ARC package installation, account access,
@@ -13,7 +13,7 @@ From the updated repository on ARC:
 ```bash
 python3 scripts/maintenance/launch_f187n_pipeline.py \
   --env-prefix /work/ppi246/agn/envs/f187n \
-  --run-root /work/ppi246/agn/experiments/f187n_full_v2
+  --run-root /work/ppi246/agn/experiments/f187n_full_v3
 ```
 
 The system Python can run this standard-library launcher, including Python 3.6.
@@ -41,7 +41,7 @@ For the first ARC check, use a separate name and smoke-only mode:
 ```bash
 python3 scripts/maintenance/launch_f187n_pipeline.py \
   --env-prefix /work/ppi246/agn/envs/f187n \
-  --run-root /work/ppi246/agn/experiments/f187n_gpu_check_v2 \
+  --run-root /work/ppi246/agn/experiments/f187n_gpu_check_v3 \
   --groups 3 --smoke-only
 ```
 
@@ -118,9 +118,11 @@ replace older spectra with converged grids or supply the full raw archive.
 
 ## What the generated images mean
 
-`configs/cloudy/f187n_dataset_pilot_v2.json` records controlled uniform ranges:
+`configs/cloudy/f187n_dataset_pilot_v3.json` records controlled uniform ranges:
 intrinsic half-opening 20–40 degrees, inclination from the sky plane −35–35
-degrees, undirected sky PA 0–180 degrees, and size/dust/amplitude variation.
+degrees, undirected sky PA 0–180 degrees, and size/amplitude variation. The v3 recipe also varies foreground
+dust depth, coverage and spatial scale, host/H II strength, and cone/host texture.
+See [generation controls and measured descriptors](../configs/cloudy/F187N_VARIATION_AND_DESCRIPTORS.md).
 These are experimental ranges, not inferred galaxy-population priors.
 
 | Saved variant | Meaning |
@@ -142,6 +144,9 @@ ratios use linear noiseless post-PSF maps in reference-valid pixels at
 0.3–3.3 arcsec, excluding baseline/noise. For cone-free cases, C is zero,
 M=B/C is undefined, cone geometry/length are undefined, and the status is
 `zero_cone_signal`. Other-component membership and patchiness remain recorded.
+V3 additionally measures the nominal-cone intersection of this annulus, records
+foreground-screen transmission/coverage, and assigns explicitly provisional
+descriptive categories. There is no messiness input or validated difficulty score.
 The baseline/noise inherited from the parent are explicitly retained separately.
 
 The prescribed geometric label can be faint inside its boundary and have gas
@@ -159,10 +164,11 @@ Each experiment directory contains:
   submission failures. These describe submission, not final job status.
 - `logs/generate-JOBID.log` and `logs/train-JOBID.log`: persistent job output.
 - `dataset/`: plan, attempted renders, component archives, tensors, completion
-  records, and the validated final manifest.
+  records, the validated final manifest, and automatic descriptor tables/plots.
 - `training/model_smoke/smoke.json`: positive/negative optimizer check.
 - `training/model/`: config/provenance, epoch checkpoints and statistics,
-  validation selection, test report, and prediction previews.
+  validation selection, test report, prediction previews, and plots of held-out
+  errors versus measured contrast/obscuration.
 
 Use `squeue -u "$USER"` to monitor jobs and the logs to inspect failures.
 The resource requests are CPU: 1 core/8 GB/12 hours; GPU: 1 A100/4 cores/16 GB/
@@ -174,7 +180,7 @@ To prepare a frozen, reviewable workflow without submitting jobs, add
 
 ```bash
 python3 scripts/maintenance/launch_f187n_pipeline.py \
-  --run-root /work/ppi246/agn/experiments/f187n_full_v2 --resume
+  --run-root /work/ppi246/agn/experiments/f187n_full_v3 --resume
 ```
 
 The same command can retry failed generation after its previous jobs have

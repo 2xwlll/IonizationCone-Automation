@@ -69,7 +69,7 @@ def snapshot(run_root, env_prefix, groups, epochs, variant, smoke_only):
         destination = code/name
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(str(ROOT/name), str(destination))
-    dataset_config = json.loads((code/'configs/cloudy/f187n_dataset_pilot_v2.json').read_text())
+    dataset_config = json.loads((code/'configs/cloudy/f187n_dataset_pilot_v3.json').read_text())
     dataset_config['groups'] = groups
     train_config = json.loads((code/'configs/cloudy/train_f187n_pilot_v2.json').read_text())
     train_config.update(epochs=epochs, variant=variant)
@@ -78,7 +78,7 @@ def snapshot(run_root, env_prefix, groups, epochs, variant, smoke_only):
     (run_root/'logs').mkdir()
     (run_root/'submissions').mkdir()
     manifest = {
-        'schema': 'f187n_arc_workflow_v2', 'environment': str(env_prefix),
+        'schema': 'f187n_arc_workflow_v3', 'environment': str(env_prefix),
         'groups': groups, 'epochs': epochs, 'variant': variant, 'smoke_only': smoke_only,
         'sha256': {str(p.relative_to(run_root)): digest(p) for p in sorted(code.rglob('*')) if p.is_file()},
         'scope': 'controlled shared-generator pilot with paired cone-removal negatives'}

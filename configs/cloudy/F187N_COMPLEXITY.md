@@ -1,5 +1,14 @@
 # F187N cone contrast and spatial structure
 
+Updated 2026-11-05: the v3 population generator now records these diagnostics
+in both whole-annulus and nominal-cone apertures at 0.3–3.3 arcsec, alongside
+foreground-screen measurements and provisional descriptive categories. It
+samples dust, source strengths and texture controls; messiness is a measured
+output, not an input knob. Automatic CSV/population/performance plots are
+documented in [generation controls and measured descriptors](F187N_VARIATION_AND_DESCRIPTORS.md).
+The saved-image adapter and its older aperture/report below remain available
+as a separate historical analysis; do not mix their numeric apertures.
+
 Implemented 2026-10-29 as a diagnostic of **existing synthetic component maps**.
 No image, mask, CLOUDY spectrum, or training checkpoint is changed. This does
 not validate the underlying emission physics or establish a difficulty ranking.

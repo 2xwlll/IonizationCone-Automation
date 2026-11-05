@@ -20,7 +20,7 @@ fi
 python scripts/maintenance/check_f187n_environment.py --inputs
 if [[ ! -e "$AGN_DATASET" ]]; then
   python scripts/cloudy/prepare_f187n_dataset.py plan --dataset "$AGN_DATASET" \
-    --config "${AGN_DATASET_CONFIG:-configs/cloudy/f187n_dataset_pilot_v2.json}"
+    --config "${AGN_DATASET_CONFIG:-configs/cloudy/f187n_dataset_pilot_v3.json}"
 elif [[ "${AGN_RESUME_GENERATION:-0}" != 1 ]]; then
   echo 'Dataset already exists. Use the launcher --resume to verify and continue it.' >&2
   exit 1
@@ -28,3 +28,5 @@ fi
 python scripts/cloudy/prepare_f187n_dataset.py render --dataset "$AGN_DATASET" --all
 python scripts/cloudy/prepare_f187n_dataset.py finalize --dataset "$AGN_DATASET"
 python scripts/cloudy/prepare_f187n_dataset.py validate --dataset "$AGN_DATASET"
+python scripts/cloudy/summarize_f187n_population.py --dataset "$AGN_DATASET" \
+  --output "$AGN_DATASET/diagnostics/generation-${SLURM_JOB_ID:-manual}"

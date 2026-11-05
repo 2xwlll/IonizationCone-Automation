@@ -17,7 +17,8 @@ from src.simple_utils.f187n_pilot_dataset import (SCHEMA, ALL_VARIANTS, sha256, 
     grouped_splits, normalize_image, validate_manifest, cone_free_image)
 from src.simple_utils.f187n import rebin_surface_brightness, resample_psf
 from src.simple_utils.gas_structure import soft_agn_emission_weight
-from src.simple_utils.image_complexity import component_metrics, psf_axis_fwhm
+from src.simple_utils.image_complexity import psf_axis_fwhm
+from src.simple_utils.image_descriptors import set_sampled_parameter, describe_image, CATEGORY_DEFINITION
 from src.jwst_utils.nircam import convolve_kernel
 from scripts.cloudy.measure_f187n_complexity import load_components
 
@@ -48,8 +49,6 @@ def plan_dataset(config_path, output, count=None):
     with np.load(ROOT/base['reference'],allow_pickle=False) as f:
         reference = json.loads(str(f['metadata']))
         valid = f['valid'].astype(bool)
-    output.mkdir(parents=True,exist_ok=False)
-    np.save(output/'valid.npy',valid)
     rng = np.random.default_rng(settings['parameter_seed'])
     groups = []
     for i in range(count):
@@ -58,11 +57,12 @@ def plan_dataset(config_path, output, count=None):
         cfg.pop('output',None)
         for key,bounds in settings['ranges'].items():
             value = float(rng.uniform(*bounds))
-            target = cfg['geometry'] if key in cfg['geometry'] else cfg['components']
-            target[key] = value
+            set_sampled_parameter(cfg,key,value)
         resolved = resolve_cone_geometry(cfg['geometry'])
         groups.append({'id':f'g{i:04d}','split':split[i],'seed':cfg['seed'],
                        'configuration':cfg,'geometry':resolved})
+    output.mkdir(parents=True,exist_ok=False)
+    np.save(output/'valid.npy',valid)
     plan = {'schema':SCHEMA,'settings':settings,'groups':groups,'input_sha256':inputs,
             'code_sha256':code_hashes(),'pixel_scale_arcsec':reference['pixel_scale_arcsec'],
             'matrix_arcsec':(np.array(reference['pixel_to_sky_matrix'])*3600).tolist(),
@@ -146,10 +146,12 @@ def render_group(output, index):
                             '--config',str(attempt/'config.json')],cwd=ROOT,stdout=log,stderr=subprocess.STDOUT,check=True)
         source=attempt/'render/image_mask.npz'
         meta,cone,other,mask,valid,sigma,total,checks=load_components(source)
+        with np.load(source,allow_pickle=False) as f:
+            dust_maps=tuple(np.array(f[key]) for key in ('foreground_tau_pa_alpha_mean',
+                'foreground_transmission_pa_alpha_mean','foreground_covering_fraction'))
         if meta['resolved_geometry']!=group['geometry']:raise ValueError('Rendered geometry mismatch')
         scale=plan['pixel_scale_arcsec'];y,x=np.indices(mask.shape)
         radius=np.hypot(x-127.5,y-127.5)*scale
-        aperture=valid & (radius>.3) & (radius<3.3)
         with np.load(ROOT/cfg['psf'],allow_pickle=False) as f:
             widths=psf_axis_fwhm(f['kernel'],float(f['pixel_scale_arcsec']))
         controls={'smooth_control':smooth_control(cfg,plan['matrix_arcsec'],scale,float(cone.sum())),
@@ -164,13 +166,16 @@ def render_group(output, index):
             np.save(imagepath,tensor);np.save(maskpath,target.astype(np.uint8))
             c=controls['smooth_control'] if variant=='smooth_control' else cone if present else np.zeros_like(cone)
             b=other if variant in ('full','cone_free') else np.zeros_like(c)
-            metrics=component_metrics(c,b,aperture,pixel_scale_arcsec=scale,
-                noise_sigma=sigma if variant in ('full','cone_free') else None)
+            regions,dust,categories=describe_image(c,b,target,valid,scale,
+                noise_sigma=sigma if variant in ('full','cone_free') else None,
+                dust_maps=dust_maps,dust_applied=variant!='smooth_control')
+            metrics=regions['whole_annulus']
             extent = float(radius[target].max()) if present else None
             rows.append({'id':name,'group':gid,'seed':group['seed'],'split':group['split'],
                 'variant':variant,'image':str(imagepath.relative_to(output)),'mask':str(maskpath.relative_to(output)),
                 'image_sha256':sha256(imagepath),'mask_sha256':sha256(maskpath),'softening':softening,
                 'cone_present':present,'geometry':group['geometry'] if present else None,'complexity':metrics,
+                'complexity_regions':regions,'dust_diagnostics':dust,'categories':categories,
                 'projected_extent_arcsec':extent,
                 'extent_over_optical_psf_fwhm':extent/widths['mean_arcsec'] if present else None,
                 'optical_psf_core_fwhm_arcsec':widths['mean_arcsec'],
@@ -204,6 +209,8 @@ def finalize(output):
         'label':'nominal projected cone geometry, not detectable emission',
         'control_definition':'smooth_control is analytic illumination with matching PSF and total cone flux; no CLOUDY spectra, extinction, contaminants or noise. clumpy_cone is saved post-PSF cone gas with its extinction/excitation. full includes all components, empirical baseline and noise. cone_free removes all post-PSF cone light at fixed other components, empirical scale and noise; paired counterfactual, not an inactive-galaxy model.',
         'negative_definition':plan['settings']['negative_definition'],
+        'recipe_version':plan['settings'].get('recipe_version','f187n_pilot_v2'),
+        'category_definition':CATEGORY_DEFINITION,
         'validation_scope':'held-out realizations within one generator and shared spectral/reference inputs; not independent real-galaxy validation',
         'split_group_counts':{s:sum(g['split']==s for g in plan['groups']) for s in ('train','val','test')}}
     validate_manifest(output, manifest=manifest)
@@ -221,7 +228,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action',choices=['plan','render','finalize','validate'])
     parser.add_argument('--dataset',required=True,type=Path)
-    parser.add_argument('--config',type=Path,default=ROOT/'configs/cloudy/f187n_dataset_pilot_v2.json')
+    parser.add_argument('--config',type=Path,default=ROOT/'configs/cloudy/f187n_dataset_pilot_v3.json')
     parser.add_argument('--groups',type=int,help='Override group count for a small pipeline check')
     choose=parser.add_mutually_exclusive_group()
     choose.add_argument('--group-index',type=int);choose.add_argument('--all',action='store_true')

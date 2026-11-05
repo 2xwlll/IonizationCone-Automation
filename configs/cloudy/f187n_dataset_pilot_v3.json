@@ -1,0 +1,81 @@
+{
+  "base_config": "configs/cloudy/ngc1068_f187n_controlled_variation_v3.json",
+  "groups": 64,
+  "split_seed": 731,
+  "parameter_seed": 732,
+  "first_realization_seed": 41000,
+  "ranges": {
+    "geometry.position_angle_east_of_north_deg": [
+      0.0,
+      180.0
+    ],
+    "geometry.opening_half_angle_deg": [
+      20.0,
+      40.0
+    ],
+    "geometry.inclination_deg": [
+      -35.0,
+      35.0
+    ],
+    "geometry.radius_fraction": [
+      0.55,
+      0.85
+    ],
+    "components.stellar_bulge_relative_to_gas_p99": [
+      0.3,
+      1.2
+    ],
+    "components.nuclear_peak_relative_to_gas_p99": [
+      10.0,
+      50.0
+    ],
+    "components.host_low_u_gas_fraction": [
+      0.02,
+      0.3
+    ],
+    "star_forming.relative_to_agn_gas_p99": [
+      0.05,
+      1.0
+    ],
+    "foreground_dust.tau_patch_pa_alpha": [
+      0.1,
+      2.0
+    ],
+    "foreground_dust.covering_fraction": [
+      0.0,
+      0.8
+    ],
+    "foreground_dust.correlation_sigma_arcsec": [
+      0.08,
+      0.6
+    ],
+    "texture_controls.cone_correlation_sigma_arcsec": [
+      0.04,
+      0.12
+    ],
+    "texture_controls.cone_log_contrast": [
+      0.2,
+      1.2
+    ],
+    "texture_controls.host_correlation_sigma_arcsec": [
+      0.05,
+      0.25
+    ],
+    "texture_controls.host_log_contrast": [
+      0.2,
+      1.0
+    ]
+  },
+  "range_status": "Controlled experimental ranges, not an inferred galaxy population. Opening range includes the 40-deg outer half-angle literature benchmark; inclination is restricted so sightlines remain outside the cone. PA spans the undirected axis. Other ranges vary the existing illustrative scenario. New dust, texture and host/H II amplitude ranges are illustrative controlled-test ranges, not measured astrophysical priors. Dust correlation sigma is not a cloud radius. Relative amplitudes inherit gas-p99 and global empirical scaling.",
+  "reference": "configs/cloudy/NGC1068_CONE_LITERATURE_COMPARISON.md",
+  "limitations": [
+    "Prescribed geometry with simulated emission; not a 3D transfer solution",
+    "Shared older CLOUDY grids and observational calibration limit generalization claims",
+    "Smooth control is analytic, not a CLOUDY-rendered galaxy",
+    "Variants of one realization stay in the same data split"
+  ],
+  "schema": "f187n_grouped_pilot_v2",
+  "negative_definition": "One matched cone_free image per realization: subtract all saved post-PSF cone-associated light, including off-axis tails, at fixed empirical amplitude. Retain host/H II/stellar/nuclear emission, baseline and the same noise. This is a counterfactual removal control, not an inactive-galaxy population.",
+  "recipe_version": "f187n_controlled_variation_v3",
+  "measurement_policy": "No messiness input parameter. Measure linear post-PSF C/B in whole and nominal-cone annuli, structure at stated scales, foreground-screen coverage/transmission, resolution and per-pixel signal/noise. Provisional categories are descriptive, not a validated difficulty score."
+}

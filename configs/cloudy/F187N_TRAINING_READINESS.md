@@ -1,6 +1,6 @@
 # F187N diagnostic-pilot readiness
 
-Checked 2026-11-04. This status concerns one-channel F187N images and their
+Checked 2026-11-05. This status concerns one-channel F187N images and their
 nominal projected geometric masks using `circular_cone_envelope_v2`.
 
 **The explicit F187N pipeline now passes a local end-to-end check. ARC setup,
@@ -9,6 +9,24 @@ GPU verification, and the controlled 64-group pilot remain pending.** Follow
 experiments must not silently stand in for this dataset.
 
 ## Latest local check
+
+- The default population recipe is now `f187n_dataset_pilot_v3.json`, with
+  independent foreground dust controls, host/H II amplitudes, and texture
+  controls. Contrast, patchiness and obscuration are measured outputs, with
+  both cone-local and whole-annulus descriptors and provisional categories.
+  See [variation and descriptors](F187N_VARIATION_AND_DESCRIPTORS.md).
+- A fresh three-group v3 dataset (12 variants), one CPU epoch, descriptor CSV,
+  population plots and held-out performance/false-positive plots completed
+  locally under `data/cloudy/f187n_pipeline_check_v3` and ignored
+  `results/cloudy/f187n_{population,performance}_descriptors_v3`.
+- All 90 unit tests passed. Slurm shell syntax, the Python 3.6-compatible
+  launcher, and a frozen v3 launch dry-run also passed local checks.
+- The controlled dust-depth comparison preserved labels and covered pixels;
+  a legacy rerender reproduced the previous input and mask exactly. Evidence
+  is in `results/cloudy/f187n_v3_physical_checks/checks.json`. Three groups do
+  not establish population coverage or useful segmentation performance.
+
+## Earlier v2 workflow check
 
 - `prepare_f187n_dataset.py` generated three independent groups with four
   matched variants each, including paired cone-free controls, one group per split. Source/input hashes, component

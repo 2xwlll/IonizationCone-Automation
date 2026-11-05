@@ -28,6 +28,7 @@ from src.simple_utils.f187n_calibration import component_group
 from src.simple_utils.f187n import line_response, rebin_surface_brightness, resample_psf
 from src.simple_utils.synthetic_photometry import photon_bandpass_weights
 from src.simple_utils.cone_geometry import resolve_cone_geometry, LEGACY
+from src.simple_utils.foreground_dust import patchy_screen
 
 
 def main():
@@ -73,9 +74,11 @@ def main():
     half = geometry_metadata['projected_half_opening_rad']
     cone = (np.abs(cross) <= np.abs(axial)*np.tan(half)) & (radius < geo['radius_fraction'])
     cone |= radius < 3/high
-    fields = [gaussian_filter(rng.normal(size=(high,high)), width*over) for width in (2,8)]
+    texture_cfg = cfg.get('texture_controls', {})
+    cone_sigma = texture_cfg['cone_correlation_sigma_arcsec']/fine_scale if 'cone_correlation_sigma_arcsec' in texture_cfg else 2*over
+    fields = [gaussian_filter(rng.normal(size=(high,high)), width) for width in (cone_sigma,8*over)]
     fields = [field/max(field.std(),1e-12) for field in fields]
-    texture = np.exp(.8*fields[0]+.35*fields[1])
+    texture = np.exp(texture_cfg.get('cone_log_contrast', .8)*fields[0]+.35*fields[1])
     cone_weight = cone*np.exp(-2.5*radius)*(.3+texture)
     if cfg.get('gas_structure'):
         cone_weight=soft_agn_emission_weight(axial,cross,radius,half,
@@ -90,11 +93,12 @@ def main():
         host_major = east*np.sin(host_pa)+north*np.cos(host_pa)
         host_minor = east*np.cos(host_pa)-north*np.sin(host_pa)
         disk_radius = np.hypot(host_major,host_minor/host_cfg['axis_ratio'])
-        host_fields = [gaussian_filter(rng.normal(size=(high,high)), width*over) for width in (2,8)]
+        host_sigma = texture_cfg['host_correlation_sigma_arcsec']/fine_scale if 'host_correlation_sigma_arcsec' in texture_cfg else 2*over
+        host_fields = [gaussian_filter(rng.normal(size=(high,high)), width) for width in (host_sigma,8*over)]
         host_fields = [field/max(field.std(),1e-12) for field in host_fields]
         host_weight = (cfg['components']['host_low_u_gas_fraction']*
                        np.exp(-host_cfg['radial_decay']*disk_radius)*
-                       np.exp(.6*host_fields[0]+.4*host_fields[1]))
+                       np.exp(texture_cfg.get('host_log_contrast', .6)*host_fields[0]+.4*host_fields[1]))
         # Independent projected population: no cone mask or exclusion here.
     else:
         # Preserve the original v1 recipe when explicitly using its config.
@@ -124,7 +128,13 @@ def main():
                              np.clip(host_cfg['log_nh']+.4*host_fields[1],2,4),
                              host_dust,host_pah)
         host_velocity = host_cfg['rotation_kms']*host_major/np.sqrt(disk_radius**2+.1**2)
-    tau = cfg['components']['foreground_tau_at_pa_alpha']*(fields[1]-fields[1].min())/np.ptp(fields[1])
+    if cfg.get('foreground_dust'):
+        tau, dust_covered = patchy_screen((high,high),fine_scale,cfg['seed'],cfg['foreground_dust'])
+        dust_model = 'patchy_screen_v1'
+    else:
+        tau = cfg['components']['foreground_tau_at_pa_alpha']*(fields[1]-fields[1].min())/np.ptp(fields[1])
+        dust_covered = tau > 0
+        dust_model = 'legacy_gas_correlated_screen'
     fw, throughput = grid['filter_wavelength_angstrom'], grid['throughput']
     z = cfg['redshift']
     populations = ('cone','host')
@@ -252,6 +262,11 @@ def main():
         'component_names':list(rendered),'aggregate_names':list(aggregates),'empirical_scale':amplitude,
         'independent_host_geometry':independent_host,
         'gas_structure':cfg.get('gas_structure'),'nuclear_structure':cfg.get('nuclear_structure'),
+        'foreground_dust':{'model':dust_model,'controls':cfg.get('foreground_dust'),
+            'screen_applies_to':'cone gas, host gas, H II emission and stellar continuum before PSF; nuclear continuum retains its separate normalized SED prescription',
+            'map_definition':'pre-PSF intrinsic optical depth and coverage; coarse maps are area averages, transmission is mean(exp(-tau))',
+            'limitations':'Prescribed foreground screen, no dust mass inference, scattering, thermal re-emission or energy balance; not a torus model'},
+        'texture_controls':texture_cfg,
         'cone_label_semantics':'nominal projected cone geometry; soft AGN emission may extend outside it',
         'resolved_geometry':geometry_metadata,
         'nuclear_sed':cfg.get('nuclear_sed'), 'nuclear_sed_color_factor':nuclear_color_factor,
@@ -298,6 +313,11 @@ def main():
     np.savez_compressed(output/'image_mask.npz',input=observed.astype(np.float32),clean=clean,
                         relative_clean=clean_relative,mask=mask.astype(np.float32),
                         reference_science=real,reference_error=error,reference_valid=valid,
+                        foreground_tau_pa_alpha_intrinsic=tau,
+                        foreground_covered_intrinsic=dust_covered,
+                        foreground_tau_pa_alpha_mean=rebin_surface_brightness(tau,over),
+                        foreground_transmission_pa_alpha_mean=rebin_surface_brightness(np.exp(-tau),over),
+                        foreground_covering_fraction=rebin_surface_brightness(dust_covered.astype(float),over),
                         **{name:layer*amplitude for name,layer in {**rendered,**aggregates}.items()},
                         intrinsic_cone_gas=rebin_surface_brightness(sum(
                             layer for name,layer in gas_maps.items() if name.startswith('cone_')),over),

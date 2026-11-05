@@ -160,6 +160,10 @@ separate and did not automatically replace those image inputs.
   aperture/patchiness definitions, saved reports, and interpretation limits.
 - `configs/cloudy/F187N_MODEL_AUDIT.md`: F187N-specific BCE/positive-only Dice,
   mixed-target checks and separate negative false-positive evaluation.
+- `configs/cloudy/F187N_VARIATION_AND_DESCRIPTORS.md`: v3 independent foreground
+  screen/texture/source controls and measured whole/cone-annulus descriptors.
+  Category cuts are provisional descriptions, not a validated difficulty
+  score. Dust coverage/optical depth do not imply dust mass or torus recovery.
 - `docs/F187N_ARC_SETUP.md`: v2 paired-removal negatives and the frozen-source
   CPU generation/validation to GPU training launcher. Local checks do not
   establish ARC execution or real-galaxy accuracy; no cluster jobs were launched.

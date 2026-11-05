@@ -15,6 +15,9 @@ Use [F187N ARC setup](docs/F187N_ARC_SETUP.md) for the explicit F187N dataset,
 environment, and one-command Slurm generation/training workflow with paired
 cone-free controls. The [F187N model audit](configs/cloudy/F187N_MODEL_AUDIT.md)
 describes the loss and separate positive/negative evaluation.
+The current [v3 generation controls and descriptors](configs/cloudy/F187N_VARIATION_AND_DESCRIPTORS.md)
+vary dust and competing emission, then measure contrast, patchiness and
+obscuration for categorization and performance plots.
 
 Saved NGC 1068 parameters, source settings, previews, and local data links are in
 [saved_runs/ngc1068_20260514](saved_runs/ngc1068_20260514/README.md).

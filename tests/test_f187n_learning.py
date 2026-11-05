@@ -77,7 +77,7 @@ class F187NLearningTests(unittest.TestCase):
             def forward(self,x):return torch.full_like(x,-20.)
         x=torch.ones(2,1,256,256);y=torch.zeros_like(x);y[0,:,:,64:192]=1
         ds=TensorDataset(x,y,torch.arange(2))
-        ds.rows=[dict(id=str(i),group='g',variant='full' if i==0 else 'cone_free',
+        ds.rows=[dict(id=str(i),group='g',split='test',variant='full' if i==0 else 'cone_free',
                       geometry={'axis_pa_east_of_north_deg':30.,'projected_full_opening_deg':80.} if i==0 else None,
                       complexity={},extent_over_optical_psf_fwhm=None,softening=1.) for i in range(2)]
         with tempfile.TemporaryDirectory() as folder:
