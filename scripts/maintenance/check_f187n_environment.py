@@ -41,8 +41,16 @@ def main():
         root=Path(__file__).resolve().parents[2]
         cfg=json.loads((root/'configs/cloudy/ngc1068_f187n_soft_gas_projection_v2.json').read_text())
         names=[cfg[k] for k in ('grid','reference','psf')]+[cfg['star_forming']['grid']]
+        names += [str(Path(cfg['grid']).parent/'manifest.json'),
+                  str(Path(cfg['star_forming']['grid']).parent/'manifest.json')]
         report['inputs']={name:(root/name).is_file() for name in names}
         report['errors']+=['Missing input: '+p for p,exists in report['inputs'].items() if not exists]
+        hii_manifest=root/Path(cfg['star_forming']['grid']).parent/'manifest.json'
+        if hii_manifest.is_file():
+            try:
+                if not json.loads(hii_manifest.read_text())['status'].startswith('completed stellar-ionized'):
+                    report['errors'].append('H II grid manifest does not report completed stellar-ionized calculations')
+            except Exception as exc:report['errors'].append('Invalid H II manifest: {}'.format(exc))
     print(json.dumps(report,indent=2))
     return 1 if report['errors'] else 0
 

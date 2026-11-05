@@ -1,20 +1,64 @@
-# F187N controlled pilot on UTSA ARC
+# F187N generation and training on UTSA ARC
 
-Prepared 2026-11-02 from the user's ARC module and partition listings. Use this
-workflow for **one-channel 256 × 256 F187N images**, with the nominal projected
-geometric mask and `circular_cone_envelope_v2`. It does not launch the older
-F502N or spectral-cube experiment. The environment and GPU have not yet been
-tested on ARC; the complete small workflow has passed locally on CPU.
+Updated 2026-11-04. This workflow uses one-channel 256 × 256 F187N images and
+nominal projected cone masks with `circular_cone_envelope_v2`. It includes
+paired cone-free controls. The [model/loss audit](../configs/cloudy/F187N_MODEL_AUDIT.md)
+records what was checked locally. ARC package installation, account access,
+and GPU/driver execution still require verification on ARC.
 
-## 1. Create the environment on ARC
+## One launch command, after initial setup
 
-Start in the cloned repository, after bringing across the source update. ARC
-lists `anaconda3/2024.10-1`, `compute1`, and `gpu1a100`. Seeing no `conda` before
-loading its module is expected. See the official [UTSA module instructions](https://hpcsupport.utsa.edu/foswiki/bin/view/WebDocumentation/ModuleEnvironments)
-and [Anaconda instructions](https://hpcsupport.utsa.edu/foswiki/bin/view/WebDocumentation/PythonVMsInAnaconda).
+From the updated repository on ARC:
 
-Request a CPU allocation for installation and checks; these commands assume
-the user's account `ppi246` and its `/work/ppi246` directory:
+```bash
+python3 scripts/maintenance/launch_f187n_pipeline.py \
+  --env-prefix /work/ppi246/agn/envs/f187n \
+  --run-root /work/ppi246/agn/experiments/f187n_full_v2
+```
+
+The system Python can run this standard-library launcher, including Python 3.6.
+Choose a fresh experiment directory. The launcher copies source, settings, and
+six scientific input files into that directory, records their hashes, and submits:
+
+1. A `compute1` CPU job to plan, generate, finalize, and validate the dataset.
+2. A `gpu1a100` job with a success dependency on the CPU job. It validates the
+   frozen files and dataset, checks CUDA execution, runs a positive/negative
+   optimizer smoke test, and trains only if those checks pass.
+
+The GPU job is canceled if its generation dependency cannot succeed. This uses
+Slurm's documented [`afterok` dependency](https://slurm.schedmd.com/sbatch.html).
+The login node only copies the small source/input snapshot and submits jobs.
+
+Defaults are 64 independent realization groups, 30 epochs, and the `full`
+positive-image variant. Each group contributes a full positive and a matched
+cone-free negative to this training experiment: **128 selected images**, split
+80/24/24 images from 40/12/12 groups. The generator also saves two positive
+controls, giving **256 total saved images**. Versions and paired positives/
+negatives of one realization always stay together in one split.
+
+For the first ARC check, use a separate name and smoke-only mode:
+
+```bash
+python3 scripts/maintenance/launch_f187n_pipeline.py \
+  --env-prefix /work/ppi246/agn/envs/f187n \
+  --run-root /work/ppi246/agn/experiments/f187n_gpu_check_v2 \
+  --groups 3 --smoke-only
+```
+
+It generates three groups and checks real GPU forward/backward/optimizer work,
+then stops. This does not estimate accuracy. After success, run the normal
+launch command with its own fresh directory. To change the bounded pilot size
+or duration, supply `--groups N --epochs N`. `--variant smooth_control` or
+`--variant clumpy_cone` selects that positive control plus the same negatives.
+These control runs are separate experiments, not extra independent galaxies.
+
+## Initial environment setup (once)
+
+The user confirmed `anaconda3/2024.10-1`, `compute1`, and `gpu1a100` in ARC's
+listings. `conda` normally appears after its module is loaded; see official
+[UTSA modules](https://hpcsupport.utsa.edu/foswiki/bin/view/WebDocumentation/ModuleEnvironments)
+and [Anaconda](https://hpcsupport.utsa.edu/foswiki/bin/view/WebDocumentation/PythonVMsInAnaconda)
+instructions. Start in the repository and request a CPU allocation:
 
 ```bash
 srun --partition=compute1 --nodes=1 --ntasks=1 --cpus-per-task=4 --mem=16G --time=01:00:00 --pty bash -l
@@ -28,157 +72,122 @@ python -m pip install torch==2.11.0 --index-url https://download.pytorch.org/whl
 python scripts/maintenance/check_f187n_environment.py
 ```
 
-The CUDA 12.6 wheel for torch 2.11.0 is listed in the official
+Use the dedicated environment's Python for scientific commands. Job scripts
+activate it automatically. The CUDA wheel is listed in the official
 [PyTorch version table](https://pytorch.org/get-started/previous-versions/).
-Only PyTorch is needed, not torchvision or torchaudio. A successful CPU import
-does not prove driver/GPU compatibility. The GPU job below checks actual CUDA
-forward/backward execution and stops if it fails. If installation reports a
-glibc, Python, or wheel incompatibility, retain the error and resolve it before
-submitting training. Do not reuse the system Python 3.6 environment.
+CPU imports alone do not establish GPU/driver compatibility. Retain any Python,
+glibc, CUDA, or package error and resolve it before the main training run.
+The local CPU tests used Python 3.11.2 and torch 2.11.0+cu130; the proposed ARC
+Python 3.12/cu126 environment has not been tested locally or remotely.
 
-Re-entering a shell requires loading the module, sourcing the conda hook, and
-activating the prefix again. Job scripts do this explicitly. Submit jobs from
-the repository root so relative script paths resolve. Resource requests are
-starting requests; the partition listing does not prove account access.
+## Scientific input transfer (once)
 
-## 2. Transfer the four scientific inputs separately
-
-Git intentionally excludes these files:
+Git excludes the six required input files:
 
 ```text
 data/cloudy/ngc1068_f187n_pilot_v1/grid.npz
+data/cloudy/ngc1068_f187n_pilot_v1/manifest.json
 data/cloudy/hii_f187n_calculated_v2/grid.npz
+data/cloudy/hii_f187n_calculated_v2/manifest.json
 results/cloudy/f187n_reference/nucleus_cutout.npz
 results/cloudy/f187n_psf_nrcb4/kernel.npz
 ```
 
-A local bundle was prepared at `results/transfers/f187n_pilot_inputs_v1.tar.gz`
-(about 2.6 MB), containing only these inputs and their SHA-256 checklist.
-From the **local computer**, in this repository, transfer it:
+The local `results/transfers/f187n_pilot_inputs_v2.tar.gz` bundle (about 2.6 MB)
+contains the four unchanged arrays, both grid manifests, and their checksums.
+The earlier v1 bundle omitted the H II completion manifest required by the renderer;
+use this v2 bundle even if the arrays have already been transferred. From the **local computer**,
+in this repository:
 
 ```bash
-scp results/transfers/f187n_pilot_inputs_v1.tar.gz ppi246@arc.utsa.edu:~/f187n_pilot_inputs_v1.tar.gz
+scp results/transfers/f187n_pilot_inputs_v2.tar.gz ppi246@arc.utsa.edu:~/f187n_pilot_inputs_v2.tar.gz
 ```
 
-Then on **ARC**, in the cloned repository:
+Then on **ARC**, in the cloned repository, with the environment active:
 
 ```bash
-tar --keep-old-files -xzvf ~/f187n_pilot_inputs_v1.tar.gz
-sha256sum -c data/cloudy/F187N_INPUTS.sha256
+tar --keep-old-files -xzvf ~/f187n_pilot_inputs_v2.tar.gz
+sha256sum -c data/cloudy/F187N_INPUTS_V2.sha256
 python scripts/maintenance/check_f187n_environment.py --inputs
 ```
 
-`--keep-old-files` protects existing research files and may report that some
-already exist. Every checksum must still pass. If a file differs, preserve it
-and resolve the input version before proceeding. The bundle does not contain
-the full observational archive or new CLOUDY runs. These are the existing
-spectral grids used by the corrected image; their documented convergence and
-calibration limitations still apply.
+Existing files are protected by `--keep-old-files`; every checksum must pass.
+Preserve any differing versions and resolve them before launching. The bundle
+contains the existing spectral grids, reference cutout, and PSF; it does not
+replace older spectra with converged grids or supply the full raw archive.
 
-## 3. Plan and generate the controlled dataset
+## What the generated images mean
 
-With the environment active, in the repository root:
-
-```bash
-export AGN_ENV_PREFIX=/work/ppi246/agn/envs/f187n
-export AGN_DATASET=/work/ppi246/agn/data/f187n_pilot_v1
-python scripts/cloudy/prepare_f187n_dataset.py plan --dataset "$AGN_DATASET"
-sbatch scripts/slurm/generate_f187n.slurm
-```
-
-The plan creates a new directory and records source/input hashes before any
-rendering. The CPU job renders sequentially and finalizes the manifest only
-after all groups complete. Check its `slurm-f187n-generate-JOBID.log`; once
-finished, verify:
-
-```bash
-python scripts/cloudy/prepare_f187n_dataset.py validate --dataset "$AGN_DATASET"
-```
-
-The default population has **64 independent realization seeds**, assigned to
-40 training, 12 validation, and 12 test groups. Each group has three images:
-
-| Variant | Input meaning |
-| --- | --- |
-| `smooth_control` | Analytic smooth illumination, matching PSF and cone flux; no spectra, dust, contaminants, or noise |
-| `clumpy_cone` | Saved cone-associated gas, including its excitation/extinction and PSF |
-| `full` | Cone plus modeled other components, empirical baseline, and noise |
-
-All three share the same geometric label and split. There are 192 images, but
-training on one variant uses 64 images, not 192 independent galaxies.
-`configs/cloudy/f187n_dataset_pilot_v1.json` records uniform experimental ranges:
+`configs/cloudy/f187n_dataset_pilot_v2.json` records controlled uniform ranges:
 intrinsic half-opening 20–40 degrees, inclination from the sky plane −35–35
-degrees, undirected sky PA 0–180 degrees, and size/dust/component-amplitude
-variation. These are controlled ranges, not inferred population distributions.
-No cone-free population or independent spectral conditions are included.
+degrees, undirected sky PA 0–180 degrees, and size/dust/amplitude variation.
+These are experimental ranges, not inferred galaxy-population priors.
 
-Inputs use invertible signed asinh normalization; metadata keeps the scale.
-Component ratios use linear noiseless post-PSF maps, with baseline/noise
-excluded, in reference-valid pixels at 0.3–3.3 arcsec. Per-image complexity,
-resolution, configurations, component maps, hashes, and renderer logs remain
-with the dataset. Noise significance inherits the documented generator noise
-model and is not a measured correlated-noise significance for real data.
+| Saved variant | Meaning |
+| --- | --- |
+| `smooth_control` | Analytic smooth illumination with matching PSF and cone flux; no spectra, dust, contaminants, or noise |
+| `clumpy_cone` | Cone-associated post-PSF gas with its excitation and extinction |
+| `full` | All modeled components, empirical baseline, and noise |
+| `cone_free` | Full image minus the entire saved post-PSF cone component, including off-axis tails, with an empty mask |
 
-For a cluster pipeline check, use a different fresh dataset path and add
-`--groups 3` to `plan`. This gives one group per split and no useful accuracy
-estimate. Do not combine that check with the 64-group results.
+The negative retains other emission (including possible AGN-powered host and
+nuclear light), the empirical amplitude/baseline, and the identical additive
+noise realization. It is a **paired component-removal control**, not an
+independent inactive-galaxy simulation or a new photon-noise calculation.
+The 50% negative fraction in each selected experiment is a controlled choice,
+not an estimate of the prevalence of cones in observed galaxies.
 
-On a failed render, preserve the attempt and log. Retry only incomplete groups
-with `render --dataset "$AGN_DATASET" --group-index N`, where N is zero-based,
-then `finalize --dataset "$AGN_DATASET"`. `--all` intentionally refuses already
-completed groups. A killed job can leave `locks/gNNNN`; verify the job is dead
-before clearing that empty lock. Source/input changes require a new versioned
-plan instead of mixing versions. Existing finalized datasets remain usable.
+All images use signed-asinh normalization with a stored inverse scale. Component
+ratios use linear noiseless post-PSF maps in reference-valid pixels at
+0.3–3.3 arcsec, excluding baseline/noise. For cone-free cases, C is zero,
+M=B/C is undefined, cone geometry/length are undefined, and the status is
+`zero_cone_signal`. Other-component membership and patchiness remain recorded.
+The baseline/noise inherited from the parent are explicitly retained separately.
 
-## 4. Verify the GPU, then train
+The prescribed geometric label can be faint inside its boundary and have gas
+emission beyond it. Shared old spectra, empirical calibration, simplified
+projected radial structure, and shared observational inputs limit conclusions
+to recovery within this generator. See [geometry](../configs/cloudy/F187N_CONE_GEOMETRY.md)
+and [spectral constraints](../configs/cloudy/NGC1068_SPECTRAL_CONSTRAINTS.md).
 
-After dataset validation, submit a **smoke-only** GPU job:
+## Logs, results, inspection, and retries
+
+Each experiment directory contains:
+
+- `snapshot.json` and `code/`: frozen source, configs and scientific inputs.
+- `submissions/*.json`: submission commands and job IDs, including partial
+  submission failures. These describe submission, not final job status.
+- `logs/generate-JOBID.log` and `logs/train-JOBID.log`: persistent job output.
+- `dataset/`: plan, attempted renders, component archives, tensors, completion
+  records, and the validated final manifest.
+- `training/model_smoke/smoke.json`: positive/negative optimizer check.
+- `training/model/`: config/provenance, epoch checkpoints and statistics,
+  validation selection, test report, and prediction previews.
+
+Use `squeue -u "$USER"` to monitor jobs and the logs to inspect failures.
+The resource requests are CPU: 1 core/8 GB/12 hours; GPU: 1 A100/4 cores/16 GB/
+4 hours. Requests do not prove account access or sufficient time for every
+future population size. See [UTSA Slurm](https://hpcsupport.utsa.edu/foswiki/bin/view/WebDocumentation/RunningApplicationsInteractivelyAndSubmittingBatchJobs).
+
+To prepare a frozen, reviewable workflow without submitting jobs, add
+`--dry-run`. Submit it later with:
 
 ```bash
-export AGN_RUN=/work/ppi246/agn/runs/f187n_gpu_check_v1
-export AGN_SMOKE_ONLY=1
-sbatch scripts/slurm/train_f187n.slurm
+python3 scripts/maintenance/launch_f187n_pipeline.py \
+  --run-root /work/ppi246/agn/experiments/f187n_full_v2 --resume
 ```
 
-This checks CUDA, then performs one real F187N forward/backward/optimizer step.
-Read the Slurm log and `${AGN_RUN}_smoke/smoke.json`. Once that passes, use a
-new run name for the controlled full-image pilot:
+The same command can retry failed generation after its previous jobs have
+ended. It uses the original frozen settings, verifies completed groups before
+skipping them, and keeps failed render attempts. Active job IDs block duplicate
+submission. A killed process may leave `.submission.lock` or a dataset group
+lock; verify the job is dead before removing that empty lock. Changed source,
+inputs, completion records, or corrupted arrays stop execution; preserve them
+and use a fresh experiment directory. Dataset finalization is repeatable after
+verification. Training attempts are preserved and refuse automatic overwrite;
+there is no automatic training-checkpoint resume.
 
-```bash
-export AGN_RUN=/work/ppi246/agn/runs/f187n_full_v1
-export AGN_SMOKE_ONLY=0
-export AGN_VARIANT=full
-sbatch scripts/slurm/train_f187n.slurm
-```
-
-The default is 30 epochs, batch size 4, encoder widths [16,32,64,128], Adam
-at 1e-4, and BCE/Dice loss with positive weight 1. See
-`configs/cloudy/train_f187n_pilot_v1.json`. It uses validation loss for selection
-and evaluates the test split afterward. Every epoch checkpoint is retained;
-there is no automatic training resume. Fresh output names protect old runs.
-To assess recoverability, subsequently compare separate `smooth_control`,
-`clumpy_cone`, and `full` runs using the same manifest and training settings.
-
-The report includes mask overlap, fitted projected opening/axis errors, fit
-failure counts, a photometric angular-excess baseline, and per-case complexity.
-The mask fit uses a fixed 0.3–1.5 arcsec annulus and 3-degree search steps; the
-photometric baseline uses 0.7–3.3 arcsec. Both overlap scores also use that
-latter common annulus. Fit failures remain undefined, not zero-error results.
-These descriptive estimates are not 3D torus angles or observational validation.
-
-Use `squeue -u "$USER"` to monitor jobs. See the official
-[UTSA Slurm instructions](https://hpcsupport.utsa.edu/foswiki/bin/view/WebDocumentation/RunningApplicationsInteractivelyAndSubmittingBatchJobs).
-`/work` is scratch storage, is not backed up, and has a retention policy;
-archive important manifests, logs, inputs, and selected outputs elsewhere per
-[UTSA storage guidance](https://hpcsupport.utsa.edu/foswiki/bin/view/WebDocumentation/WebHome).
-
-## Local verification, 2026-11-02
-
-Three groups/nine variants were generated and their manifest validated under
-`data/cloudy/f187n_pipeline_check_v1`. A CPU smoke check and a one-epoch run
-completed, including checkpoint reload and baseline/test reporting, under
-`results/cloudy/f187n_pipeline_check_{smoke,epoch}_v1`. These are ignored local
-artifacts. The local environment was Python 3.11.2 with torch 2.11.0+cu130,
-executed on CPU; Python 3.12 with the CUDA 12.6 wheel is the proposed ARC setup.
-These tests demonstrate executable plumbing only. ARC environment setup,
-input transfer, a GPU smoke check, and the 64-group experiment remain pending.
+Do not edit frozen files while jobs are queued. Source changes belong in a new
+experiment. Work storage is not backed up and has a retention policy; archive
+important inputs, manifests, logs, and selected checkpoints per [UTSA storage
+guidance](https://hpcsupport.utsa.edu/foswiki/bin/view/WebDocumentation/WebHome).

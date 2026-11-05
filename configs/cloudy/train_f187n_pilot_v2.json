@@ -1,0 +1,24 @@
+{
+  "variant": "full",
+  "features": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "batch_size": 4,
+  "epochs": 30,
+  "learning_rate": 0.0001,
+  "pos_weight": 1.0,
+  "seed": 42,
+  "num_workers": 0,
+  "cpu_threads": 4,
+  "mixed_precision": true,
+  "status": "Diagnostic recovery experiment; not real-galaxy validation",
+  "loss": "f187n_bce_positive_dice_v1",
+  "bce_weight": 1.0,
+  "dice_weight": 1.0,
+  "max_grad_norm": 5.0,
+  "prediction_threshold": 0.5,
+  "negative_area_flag_fraction": 0.01
+}

@@ -158,6 +158,11 @@ separate and did not automatically replace those image inputs.
   calibration assumptions, and unresolved issues.
 - `configs/cloudy/F187N_COMPLEXITY.md`: implemented component diagnostics,
   aperture/patchiness definitions, saved reports, and interpretation limits.
+- `configs/cloudy/F187N_MODEL_AUDIT.md`: F187N-specific BCE/positive-only Dice,
+  mixed-target checks and separate negative false-positive evaluation.
+- `docs/F187N_ARC_SETUP.md`: v2 paired-removal negatives and the frozen-source
+  CPU generation/validation to GPU training launcher. Local checks do not
+  establish ARC execution or real-galaxy accuracy; no cluster jobs were launched.
 - `configs/cloudy/NGC1068_OBSERVED_CONE.md`: candidate observed HST emission
   geometry, sky-coordinate conventions, threshold sensitivity, and comparison
   to F187N; not a measured F187N component decomposition.

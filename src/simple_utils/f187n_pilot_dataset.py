@@ -5,8 +5,29 @@ from pathlib import Path
 
 import numpy as np
 
-SCHEMA = 'f187n_grouped_pilot_v1'
+SCHEMA = 'f187n_grouped_pilot_v2'
+LEGACY_SCHEMA = 'f187n_grouped_pilot_v1'
 VARIANTS = ('smooth_control', 'clumpy_cone', 'full')
+ALL_VARIANTS = VARIANTS + ('cone_free',)
+
+
+def cone_free_image(observed, cone):
+    """Counterfactual component removal at fixed empirical scale and noise.
+
+    Remove the entire post-PSF cone-associated component, including off-axis
+    tails. Retain other emission, baseline and the original noise realization.
+    This is not an independently simulated inactive galaxy or a Poisson redraw.
+    """
+    observed, cone = np.asarray(observed, dtype=float), np.asarray(cone, dtype=float)
+    if observed.shape != cone.shape or observed.ndim != 2 or not np.isfinite(observed).all() or not np.isfinite(cone).all():
+        raise ValueError('Expected matching finite observed/cone maps')
+    return observed-cone
+
+
+def select_samples(manifest, split, variant):
+    """Select a positive control plus its paired negatives, within one split."""
+    return [r for r in manifest['samples']
+            if r['split'] == split and r['variant'] in (variant, 'cone_free')]
 
 
 def sha256(path):
@@ -42,18 +63,27 @@ def normalize_image(image):
     return np.arcsinh(image/softening).astype(np.float32), softening
 
 
-def validate_manifest(root, verify_hashes=True):
+def validate_manifest(root, verify_hashes=True, manifest=None):
     root = Path(root)
-    manifest = json.loads((root/'manifest.json').read_text())
-    if (manifest.get('schema') != SCHEMA or manifest.get('band') != 'F187N' or
+    if manifest is None:
+        manifest = json.loads((root/'manifest.json').read_text())
+    if (manifest.get('schema') not in (SCHEMA, LEGACY_SCHEMA) or manifest.get('band') != 'F187N' or
             manifest.get('shape') != [1,256,256] or
             manifest.get('projection') != 'circular_cone_envelope_v2' or
             manifest.get('normalization') != 'asinh(image/(0.03*p99(abs(image))))'):
         raise ValueError('Wrong band, projection, shape, normalization, or dataset schema')
+    variants = ALL_VARIANTS if manifest['schema'] == SCHEMA else VARIANTS
     groups, ids, digests, mask_hashes, seeds = {}, set(), {}, {}, {}
+    if manifest['schema'] == SCHEMA:
+        path = root/'valid.npy'
+        valid = np.load(path, allow_pickle=False)
+        if sha256(path) != manifest['valid_sha256'] or valid.shape != (256, 256) or valid.dtype != bool:
+            raise ValueError('Invalid reference validity map')
+        if not valid.any():
+            raise ValueError('Reference validity map is empty')
     for row in manifest['samples']:
         group, split = row['group'], row['split']
-        if split not in ('train','val','test') or row['variant'] not in VARIANTS:
+        if split not in ('train','val','test') or row['variant'] not in variants:
             raise ValueError('Invalid split or variant')
         if row['id'] in ids or (group in groups and groups[group] != split):
             raise ValueError('Duplicate sample or physical group leaked across splits')
@@ -63,20 +93,33 @@ def validate_manifest(root, verify_hashes=True):
         seeds[row['seed']] = group
         if row['softening'] <= 0 or not np.isfinite(row['softening']):
             raise ValueError('Invalid image normalization')
-        if group in mask_hashes and mask_hashes[group] != row['mask_sha256']:
-            raise ValueError('Matched variants must retain identical masks')
-        mask_hashes[group] = row['mask_sha256']
+        if row['variant'] != 'cone_free':
+            if group in mask_hashes and mask_hashes[group] != row['mask_sha256']:
+                raise ValueError('Matched positive variants must retain identical masks')
+            mask_hashes[group] = row['mask_sha256']
+        if manifest['schema'] == SCHEMA:
+            expected = row['variant'] != 'cone_free'
+            if row.get('cone_present') is not expected or ((row.get('geometry') is not None) != expected):
+                raise ValueError('Cone presence and geometry must match the variant')
         for kind in ('image','mask'):
             path = Path(row[kind])
             if path.is_absolute() or '..' in path.parts:
                 raise ValueError('Dataset paths must stay within dataset root')
+            if not (root/path).resolve().is_relative_to(root.resolve()):
+                raise ValueError('Dataset symlink escapes root')
             if verify_hashes and sha256(root/path) != row[kind+'_sha256']:
                 raise ValueError(f'Changed {kind}: {path}')
+            if manifest['schema'] == SCHEMA and verify_hashes:
+                array = np.load(root/path, allow_pickle=False)
+                if array.shape != (256, 256) or not np.isfinite(array).all():
+                    raise ValueError('Invalid training tensor')
+                if kind == 'mask' and (not np.isin(array, [0, 1]).all() or bool(array.any()) != row['cone_present']):
+                    raise ValueError('Mask must be binary and agree with cone presence')
         digest = row['image_sha256']
         if digest in digests and digests[digest] != split:
             raise ValueError('Identical input appears across data splits')
         digests[digest] = split
-    for variant in VARIANTS:
+    for variant in variants:
         rows = [r for r in manifest['samples'] if r['variant']==variant]
         if len(rows) != len(groups) or {r['group'] for r in rows} != set(groups):
             raise ValueError('Each group requires exactly one of every variant')

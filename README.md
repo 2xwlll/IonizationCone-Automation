@@ -12,7 +12,9 @@ transfers and which research inputs must be copied separately.
 The [F187N training readiness check](configs/cloudy/F187N_TRAINING_READINESS.md)
 records the local pipeline checks and remaining cluster verification.
 Use [F187N ARC setup](docs/F187N_ARC_SETUP.md) for the explicit F187N dataset,
-environment, and Slurm training workflow.
+environment, and one-command Slurm generation/training workflow with paired
+cone-free controls. The [F187N model audit](configs/cloudy/F187N_MODEL_AUDIT.md)
+describes the loss and separate positive/negative evaluation.
 
 Saved NGC 1068 parameters, source settings, previews, and local data links are in
 [saved_runs/ngc1068_20260514](saved_runs/ngc1068_20260514/README.md).

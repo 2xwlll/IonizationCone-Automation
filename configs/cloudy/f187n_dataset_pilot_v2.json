@@ -1,0 +1,47 @@
+{
+  "base_config": "configs/cloudy/ngc1068_f187n_soft_gas_projection_v2.json",
+  "groups": 64,
+  "split_seed": 731,
+  "parameter_seed": 732,
+  "first_realization_seed": 41000,
+  "ranges": {
+    "position_angle_east_of_north_deg": [
+      0.0,
+      180.0
+    ],
+    "opening_half_angle_deg": [
+      20.0,
+      40.0
+    ],
+    "inclination_deg": [
+      -35.0,
+      35.0
+    ],
+    "radius_fraction": [
+      0.55,
+      0.85
+    ],
+    "foreground_tau_at_pa_alpha": [
+      0.1,
+      0.8
+    ],
+    "stellar_bulge_relative_to_gas_p99": [
+      0.3,
+      1.2
+    ],
+    "nuclear_peak_relative_to_gas_p99": [
+      10.0,
+      50.0
+    ]
+  },
+  "range_status": "Controlled experimental ranges, not an inferred galaxy population. Opening range includes the 40-deg outer half-angle literature benchmark; inclination is restricted so sightlines remain outside the cone. PA spans the undirected axis. Other ranges vary the existing illustrative scenario.",
+  "reference": "configs/cloudy/NGC1068_CONE_LITERATURE_COMPARISON.md",
+  "limitations": [
+    "Prescribed geometry with simulated emission; not a 3D transfer solution",
+    "Shared older CLOUDY grids and observational calibration limit generalization claims",
+    "Smooth control is analytic, not a CLOUDY-rendered galaxy",
+    "Variants of one realization stay in the same data split"
+  ],
+  "schema": "f187n_grouped_pilot_v2",
+  "negative_definition": "One matched cone_free image per realization: subtract all saved post-PSF cone-associated light, including off-axis tails, at fixed empirical amplitude. Retain host/H II/stellar/nuclear emission, baseline and the same noise. This is a counterfactual removal control, not an inactive-galaxy population."
+}

@@ -1,6 +1,6 @@
 # F187N diagnostic-pilot readiness
 
-Checked 2026-11-02. This status concerns one-channel F187N images and their
+Checked 2026-11-04. This status concerns one-channel F187N images and their
 nominal projected geometric masks using `circular_cone_envelope_v2`.
 
 **The explicit F187N pipeline now passes a local end-to-end check. ARC setup,
@@ -10,20 +10,33 @@ experiments must not silently stand in for this dataset.
 
 ## Latest local check
 
-- `prepare_f187n_dataset.py` generated three independent groups with three
-  matched variants each, one group per split. Source/input hashes, component
+- `prepare_f187n_dataset.py` generated three independent groups with four
+  matched variants each, including paired cone-free controls, one group per split. Source/input hashes, component
   diagnostics, geometry, and grouped train/validation/test assignments are saved.
 - `train_f187n_pilot.py` passed a CPU forward/backward/optimizer check and one
   epoch through validation, checkpoint selection/reload, and held-out reporting
   against the angular-excess baseline. This is a pipeline demonstration, not
   evidence of segmentation accuracy.
 - The pilot uses one 256 × 256 channel, invertible signed-asinh normalization,
-  nominal projected masks, and a smaller U-Net with widths [16,32,64,128].
-- Reports are in ignored `results/cloudy/f187n_pipeline_check_smoke_v1` and
-  `results/cloudy/f187n_pipeline_check_epoch_v1`; the dataset is in ignored
-  `data/cloudy/f187n_pipeline_check_v1`. Unit tests passed (73 tests).
+  nominal projected masks, empty masks for negatives, and a smaller U-Net with
+  widths [16,32,64,128]. The new explicit loss applies BCE to all images and
+  Dice to positive targets only. See [model audit](F187N_MODEL_AUDIT.md).
+- Reports are in ignored `results/cloudy/f187n_pipeline_check_smoke_v2` and
+  `results/cloudy/f187n_pipeline_check_epoch_v2`; the dataset is in ignored
+  `data/cloudy/f187n_pipeline_check_v2`. Unit tests passed (84 tests).
+- The one-epoch computation demonstration still predicts excessive area,
+  including on the negative test image. This is not a trained accuracy result.
 - The default dataset configuration specifies 64 groups, with 40/12/12 grouped
-  splits. This larger dataset and its 30-epoch training have **not** been run.
+  splits. A full-variant run selects 64 positives and 64 paired negatives.
+  This larger dataset and its 30-epoch training have **not** been run.
+- The standard-library launcher freezes source/configs/inputs and chains CPU
+  generation/validation to GPU checking/training through a Slurm success
+  dependency. Dry-run and mocked submission/failure tests passed locally.
+- The isolated local workflow in ignored
+  `results/cloudy/f187n_pipeline_frozen_check_v2b` also completed generation,
+  validation, verified generation skips, mixed-target smoke testing, and a
+  one-epoch CPU train/evaluate run. The v2 transfer bundle includes both grid
+  manifests; the earlier four-array bundle missed a required H II sidecar.
 - The ARC recipe targets the user-confirmed Anaconda module and A100 partition.
   Local tests do not establish remote package/driver compatibility or access.
 
