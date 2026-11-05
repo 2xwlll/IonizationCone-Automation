@@ -4,7 +4,6 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=8G
 #SBATCH --time=12:00:00
 #SBATCH --output=slurm-f187n-generate-%j.log
 set -euo pipefail

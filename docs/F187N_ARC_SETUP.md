@@ -61,7 +61,7 @@ and [Anaconda](https://hpcsupport.utsa.edu/foswiki/bin/view/WebDocumentation/Pyt
 instructions. Start in the repository and request a CPU allocation:
 
 ```bash
-srun --partition=compute1 --nodes=1 --ntasks=1 --cpus-per-task=4 --mem=16G --time=01:00:00 --pty bash -l
+srun --partition=compute1 --nodes=1 --ntasks=1 --cpus-per-task=4 --time=01:00:00 --pty bash -l
 module load anaconda3/2024.10-1
 source "$(conda info --base)/etc/profile.d/conda.sh"
 export AGN_ENV_PREFIX=/work/ppi246/agn/envs/f187n
@@ -79,6 +79,18 @@ CPU imports alone do not establish GPU/driver compatibility. Retain any Python,
 glibc, CUDA, or package error and resolve it before the main training run.
 The local CPU tests used Python 3.11.2 and torch 2.11.0+cu130; the proposed ARC
 Python 3.12/cu126 environment has not been tested locally or remotely.
+
+ARC's live scheduler output supplied on 2026-11-05 advertises only 1 MiB per
+node in compute1/2/3 and gpu1a100. `compute1` reports `DefMemPerNode=UNLIMITED`,
+`MaxMemPerNode=UNLIMITED`, and `SelectTypeParameters=NONE`. That configured
+value does not describe physical RAM, but explicit positive multi-GB requests
+are rejected as unsatisfiable. The interactive command and both batch scripts
+therefore omit memory flags and use the site's defaults. Do not change them
+to `--mem=1M` based on this placeholder. See Slurm's
+[memory configuration documentation](https://slurm.schedmd.com/slurm.conf.html).
+If the scheduler configuration changes, inspect its live settings before
+adding memory requests. This correction has been checked locally for script
+syntax; acceptance and execution still require the user's ARC session.
 
 ## Scientific input transfer (once)
 
@@ -171,8 +183,9 @@ Each experiment directory contains:
   errors versus measured contrast/obscuration.
 
 Use `squeue -u "$USER"` to monitor jobs and the logs to inspect failures.
-The resource requests are CPU: 1 core/8 GB/12 hours; GPU: 1 A100/4 cores/16 GB/
-4 hours. Requests do not prove account access or sufficient time for every
+The resource requests are CPU: 1 core/12 hours; GPU: 1 A100/4 cores/4 hours,
+with memory left to the site defaults for the scheduler configuration above.
+Requests do not prove account access or sufficient time for every
 future population size. See [UTSA Slurm](https://hpcsupport.utsa.edu/foswiki/bin/view/WebDocumentation/RunningApplicationsInteractivelyAndSubmittingBatchJobs).
 
 To prepare a frozen, reviewable workflow without submitting jobs, add
