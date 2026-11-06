@@ -27,6 +27,10 @@ cross-checks, display conventions, and example-selection rules.
 6. **Resolution space:** one point per realization, with projected extent/PSF,
    median cone/pixel_sigma and cone patchiness as separate coordinates.
 
+Both scatter plots include color-matched dashed vertical guides down to z=0.
+Hollow circles mark the corresponding positions on the base plane. The
+resolution-space z-axis includes zero to make that reference explicit.
+
 The cyan region is the nominal cone mask intersected with reference-valid
 0.3<r<3.3 arcsec pixels. Component quantities exclude empirical baseline/noise;
 matched input images include both. Images use common asinh display limits,
@@ -43,6 +47,10 @@ extent and are excluded from these positive-cone figures.
 
 The deliverable is `output/pdf/F187N_3D_Descriptor_Atlas.pdf`. Its companion
 figures/gallery are in `results/cloudy/f187n_3d_descriptor_atlas_v3/`.
+The revised edition with dashed guides is
+`output/pdf/F187N_3D_Descriptor_Atlas_Guides.pdf`, with its gallery in
+`results/cloudy/f187n_3d_descriptor_atlas_v4/`. The original edition is preserved;
+the first four pages and all measurement values are unchanged.
 This local atlas contains **three independent v3 pipeline-check galaxies**,
 not the 64-galaxy ARC population. Surfaces use every sixth pixel for display;
 annotations and recomputation checks use full-resolution arrays. Pixel maps,

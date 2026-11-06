@@ -223,7 +223,7 @@ def assemble_pdf(output, pages):
 
 def space_page(rows, gallery, examples, norm, label, resolution=False):
     fig = plt.figure(figsize=(15, 11))
-    grid = fig.add_gridspec(len(gallery), 2, width_ratios=(1.7, 1), top=.88, bottom=.08,
+    grid = fig.add_gridspec(len(gallery), 2, width_ratios=(1.7, 1), top=.88, bottom=.11,
                            left=.035, right=.97, hspace=.35, wspace=.15)
     ax = fig.add_subplot(grid[:, 0], projection='3d')
     for row in rows:
@@ -234,12 +234,19 @@ def space_page(rows, gallery, examples, norm, label, resolution=False):
         if any(v is None or not np.isfinite(v) for v in xyz):
             continue
         number = next((i+1 for i, selected in enumerate(gallery) if selected['id'] == row['id']), None)
-        ax.scatter(*xyz, s=80 if number else 22, color='#d55e00' if number else '#0072b2', alpha=.85)
+        color = '#d55e00' if number else '#0072b2'
+        ax.plot([xyz[0], xyz[0]], [xyz[1], xyz[1]], [0., xyz[2]],
+                linestyle='--', color=color, linewidth=1.25 if number else .7,
+                alpha=.75 if number else .25)
+        ax.scatter(xyz[0], xyz[1], 0., s=36 if number else 12,
+                   facecolors='none', edgecolors=color, linewidths=1., alpha=.8 if number else .3)
+        ax.scatter(*xyz, s=80 if number else 22, color=color, alpha=.85)
         if number:
             ax.text(*xyz, '  '+str(number), fontsize=12)
     if resolution:
         ax.set(xlabel='Projected extent / optical PSF FWHM', ylabel='Median cone / pixel sigma',
-               zlabel='Cone structure P_C (sigma=0.2 arcsec)')
+               zlabel='Cone structure P_C (sigma=0.2 arcsec)',
+               zlim=(0., max(patch_value(row, 'cone') for row in rows)*1.1))
         title = 'Resolution and signal visibility in 3D'
     else:
         ax.set(xlabel='Other / cone light M', ylabel='Other-light structure P_B (sigma=0.2 arcsec)',
@@ -251,7 +258,8 @@ def space_page(rows, gallery, examples, norm, label, resolution=False):
     fig.suptitle(title+'\n'+label, fontsize=16, y=.97)
     fig.text(.5, .91, 'Each point is one full positive synthetic realization. Numbered points match the images. No fitted response surface.',
              ha='center', fontsize=10)
-    fig.text(.5, .025, 'Descriptors are separate measurements, not a combined difficulty score. Cone-free examples have undefined M/extent and are excluded.',
+    fig.text(.5, .025, 'Dashed guides drop to z=0; hollow circles mark positions on the base plane.\n'
+             'Descriptors are separate measurements. Cone-free examples have undefined M/extent and are excluded.',
              ha='center', fontsize=9)
     return fig
 
@@ -318,6 +326,7 @@ def main():
         'aperture': 'reference-valid nominal mask, 0.3<r<3.3 arcsec; baseline and noise excluded from C/B and patchiness',
         'smoothing_sigma_arcsec': .2, 'surface_stride_pixels': args.stride,
         'pdf_export': 'PNG figures assembled as raster PDF pages at 135 dpi; raw measurements use full-resolution arrays',
+        'scatter_guides': 'vertical dashed lines from each point to z=0, with hollow markers at the XY projection',
         'display': {'normalization': 'shared asinh, display only', 'vmin': bottom, 'vmax': top,
                     'vmax_rule': '99.5 percentile across selected input images; brighter display pixels saturate',
                     'orientation': 'sky matrix from manifest; east left/north up in 2D; central +/-3.6 arcsec shown'},
