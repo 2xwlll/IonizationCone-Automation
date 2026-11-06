@@ -18,6 +18,8 @@ describes the loss and separate positive/negative evaluation.
 The current [v3 generation controls and descriptors](configs/cloudy/F187N_VARIATION_AND_DESCRIPTORS.md)
 vary dust and competing emission, then measure contrast, patchiness and
 obscuration for categorization and performance plots.
+The [3D descriptor atlas](docs/F187N_3D_ATLAS.md) pairs spatial measurement
+surfaces and 3D descriptor scatter plots with their synthetic source images.
 
 Saved NGC 1068 parameters, source settings, previews, and local data links are in
 [saved_runs/ngc1068_20260514](saved_runs/ngc1068_20260514/README.md).
