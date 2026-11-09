@@ -20,6 +20,9 @@ vary dust and competing emission, then measure contrast, patchiness and
 obscuration for categorization and performance plots.
 The [3D descriptor atlas](docs/F187N_3D_ATLAS.md) pairs spatial measurement
 surfaces and 3D descriptor scatter plots with their synthetic source images.
+The [ARC training failure review](docs/F187N_TRAINING_FAILURE_857188.md)
+records the first full run's partial learning, the numerical correction, and
+the training-only retry that reuses its dataset.
 
 Saved NGC 1068 parameters, source settings, previews, and local data links are in
 [saved_runs/ngc1068_20260514](saved_runs/ngc1068_20260514/README.md).

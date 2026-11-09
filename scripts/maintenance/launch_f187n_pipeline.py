@@ -49,12 +49,14 @@ def verify_snapshot(run_root):
     return manifest
 
 
-def snapshot(run_root, env_prefix, groups, epochs, variant, smoke_only):
+def snapshot(run_root, env_prefix, groups, epochs, variant, smoke_only,
+             scientific_root=None, training_settings=None):
     # Fail before creating the run if prerequisites are missing.
     if not (env_prefix/'bin/python').is_file():
         raise ValueError('Environment Python missing: '+str(env_prefix/'bin/python'))
+    scientific_root=Path(scientific_root) if scientific_root is not None else ROOT
     for name in INPUTS:
-        if not (ROOT/name).is_file():
+        if not (scientific_root/name).is_file():
             raise ValueError('Missing scientific input: '+name)
     run_root.mkdir(parents=True, exist_ok=False)
     code = run_root/'code'
@@ -68,10 +70,11 @@ def snapshot(run_root, env_prefix, groups, epochs, variant, smoke_only):
     for name in INPUTS:
         destination = code/name
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(str(ROOT/name), str(destination))
+        shutil.copy2(str(scientific_root/name), str(destination))
     dataset_config = json.loads((code/'configs/cloudy/f187n_dataset_pilot_v3.json').read_text())
     dataset_config['groups'] = groups
-    train_config = json.loads((code/'configs/cloudy/train_f187n_pilot_v2.json').read_text())
+    train_config = (dict(training_settings) if training_settings is not None else
+                    json.loads((code/'configs/cloudy/train_f187n_pilot_v2.json').read_text()))
     train_config.update(epochs=epochs, variant=variant)
     save(code/'configs/cloudy/f187n_dataset_launch.json', dataset_config)
     save(code/'configs/cloudy/f187n_train_launch.json', train_config)

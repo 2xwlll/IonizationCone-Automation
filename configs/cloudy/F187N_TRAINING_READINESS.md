@@ -1,14 +1,24 @@
 # F187N diagnostic-pilot readiness
 
-Checked 2026-11-05. This status concerns one-channel F187N images and their
+Checked 2026-11-09. This status concerns one-channel F187N images and their
 nominal projected geometric masks using `circular_cone_envelope_v2`.
 
-**The explicit F187N pipeline now passes a local end-to-end check. ARC setup,
-GPU verification, and the controlled 64-group pilot remain pending.** Follow
+**ARC setup, GPU smoke testing and generation have passed. The first full
+training attempt failed during epoch 18 after partial learning; a corrected
+training-only retry is prepared. Scientific evaluation remains pending.** Follow
 [F187N ARC setup](../../docs/F187N_ARC_SETUP.md). Existing optical/spectral
 experiments must not silently stand in for this dataset.
 
 ## Latest local check
+
+The user reported successful generation (857187), and a full training attempt
+(857188) that completed 17 epochs then failed at a nonfinite gradient norm.
+Its partial learning is documented in
+[the failure review](../../docs/F187N_TRAINING_FAILURE_857188.md). The optimizer
+now permits GradScaler overflow recovery before clipping, logs skipped updates,
+and the smoke check uses configured precision. Tests and a CPU workflow pass;
+the corrected ARC GPU retry remains pending. The dated local records below do
+not supersede this actual remote run status.
 
 - The default population recipe is now `f187n_dataset_pilot_v3.json`, with
   independent foreground dust controls, host/H II amplitudes, and texture

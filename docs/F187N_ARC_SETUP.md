@@ -182,6 +182,14 @@ and [spectral constraints](../configs/cloudy/NGC1068_SPECTRAL_CONSTRAINTS.md).
 
 ## Logs, results, inspection, and retries
 
+The first full ARC training attempt (857188) completed 17 epochs, then failed
+on a nonfinite gradient norm. See [the partial result and numerical
+correction](F187N_TRAINING_FAILURE_857188.md) for interpretation and the
+training-only retry command. Reuse the completed dataset in a fresh retry
+directory; keep the original run and its frozen source unchanged. The updated
+trainer records skipped FP16 overflow updates and uses configured precision
+in its smoke check.
+
 Each experiment directory contains:
 
 - `snapshot.json` and `code/`: frozen source, configs and scientific inputs.

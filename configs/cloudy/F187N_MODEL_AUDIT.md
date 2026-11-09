@@ -1,5 +1,13 @@
 # F187N model, loss, and evaluation audit
 
+Update 2026-11-09: the original ARC full run failed during epoch 18 after
+17 completed epochs. Scaled-gradient overflow handling and smoke-test precision
+coverage have been corrected. See [the failure review and retry](../../docs/F187N_TRAINING_FAILURE_857188.md).
+The strict-gradient behavior described below is a dated initial implementation:
+the corrected trainer skips scaler-detected FP16 overflow updates and lowers
+the scale, while retaining explicit failure for unscaled nonfinite gradients
+or a nonfinite norm of finite gradients. It records actual update/skip counts.
+
 Checked 2026-11-04 for one-channel 256 × 256 F187N images and nominal projected
 cone masks, including paired cone-free images. This is a computation and
 controlled-pilot audit, not certification of scientific segmentation accuracy.

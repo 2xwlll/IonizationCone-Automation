@@ -17,6 +17,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from src.machine_learning.models.model_2d import UNet
 from src.machine_learning.losses.f187n import F187NLoss
+from src.machine_learning.optimization import scaled_optimizer_step
 from src.simple_utils.f187n_pilot_dataset import (
     VARIANTS, validate_manifest, sha256, write_json, fit_mask_angles, select_samples)
 from scripts.cloudy.compare_real_synthetic_cones import (
@@ -147,31 +148,38 @@ def save_previews(path, previews):
     plt.close(fig)
 
 
-def smoke_check(model, optimizer, loss_fn, dataset, device):
+def smoke_check(model, optimizer, loss_fn, dataset, device, cfg, amp, scaler):
     # Deliberately exercise a positive and a negative, not a random first image.
     indices = [next(i for i, r in enumerate(dataset.rows) if r['variant'] != 'cone_free')]
     negatives = [i for i, r in enumerate(dataset.rows) if r['variant'] == 'cone_free']
     if negatives:
         indices.append(negatives[0])
+    indices += [i for i in range(len(dataset)) if i not in indices][:max(0,cfg['batch_size']-len(indices))]
     items = [dataset[i] for i in indices]
     x = torch.stack([item[0] for item in items]).to(device)
     y = torch.stack([item[1] for item in items]).to(device)
     before = model.final_conv.weight.detach().clone()
     model.train()
-    optimizer.zero_grad(set_to_none=True)
-    logits = model(x)
-    loss = loss_fn(logits, y)
-    loss.backward()
-    grads = [p.grad for p in model.parameters() if p.requires_grad]
-    if (logits.shape != y.shape or not torch.isfinite(logits).all() or not torch.isfinite(loss) or
-            any(g is None or not torch.isfinite(g).all() for g in grads)):
-        raise RuntimeError('Invalid model output, loss or gradients')
-    optimizer.step()
+    overflows=0
+    for attempt in range(9):
+        optimizer.zero_grad(set_to_none=True)
+        with torch.autocast(device_type=device,dtype=torch.float16,enabled=amp):
+            logits=model(x)
+        loss=loss_fn(logits,y)
+        if logits.shape!=y.shape or not torch.isfinite(logits).all() or not torch.isfinite(loss):
+            raise RuntimeError('Invalid model output or loss')
+        scaler.scale(loss).backward()
+        update=scaled_optimizer_step(model,optimizer,scaler,cfg['max_grad_norm'])
+        if update['updated']:break
+        overflows+=1
+    else:
+        raise RuntimeError('Smoke check could not obtain finite scaled gradients after 9 attempts')
     if torch.equal(before, model.final_conv.weight.detach()):
         raise RuntimeError('Optimizer did not update')
     return {'input_shape': list(x.shape), 'output_shape': list(logits.shape),
             'loss': float(loss.detach()), 'positive_images': int((y.sum((1, 2, 3)) > 0).sum()),
             'negative_images': int((y.sum((1, 2, 3)) == 0).sum()), 'optimizer_updated': True,
+            'mixed_precision_used':amp,'overflow_attempts':overflows,'loss_scale':float(scaler.get_scale()),
             'meaning': 'mixed-target computation check; no accuracy evidence'}
 
 
@@ -184,6 +192,7 @@ def main():
     parser.add_argument('--device', choices=['cpu', 'cuda'], default='cuda')
     parser.add_argument('--epochs', type=int)
     parser.add_argument('--smoke-test', action='store_true')
+    parser.add_argument('--expected-manifest-sha256')
     args = parser.parse_args()
     cfg = json.loads(args.config.read_text())
     if cfg.get('loss') != 'f187n_bce_positive_dice_v1':
@@ -196,6 +205,8 @@ def main():
             not 0 < cfg['negative_area_flag_fraction'] <= 1 or cfg['max_grad_norm'] <= 0):
         raise ValueError('Invalid training settings')
     dataset = args.dataset.resolve()
+    if args.expected_manifest_sha256 and sha256(dataset/'manifest.json')!=args.expected_manifest_sha256:
+        raise ValueError('Dataset manifest changed since retry preparation')
     manifest = validate_manifest(dataset)
     if args.device == 'cuda' and not torch.cuda.is_available():
         raise RuntimeError('CUDA unavailable: use an allocated GPU job; no CPU fallback')
@@ -218,27 +229,31 @@ def main():
     args.output.mkdir(parents=True, exist_ok=False)
     code_paths = [Path(__file__), ROOT/'src/simple_utils/f187n_pilot_dataset.py',
         ROOT/'src/machine_learning/models/model_2d.py', ROOT/'src/machine_learning/losses/f187n.py',
+        ROOT/'src/machine_learning/optimization.py',
         ROOT/'scripts/cloudy/compare_real_synthetic_cones.py']
     config = dict(cfg, variant=variant, epochs=epochs, device=args.device, dataset=str(dataset),
         smoke_test=args.smoke_test, dataset_manifest_sha256=sha256(dataset/'manifest.json'),
         python=sys.version, packages={name: version(name) for name in ('torch', 'numpy', 'scipy', 'astropy', 'matplotlib')},
+        mixed_precision_used=amp,overflow_policy='skip overflowed FP16 optimizer update, reduce GradScaler scale, log event; fail on persistent overflow or unscaled nonfinite gradients',
         split_counts={s: {'images': len(loader.dataset),
             'cone_free': sum(r['variant'] == 'cone_free' for r in loader.dataset.rows)} for s, loader in loaders.items()},
         code_sha256={str(p.relative_to(ROOT)): sha256(p) for p in code_paths})
     write_json(args.output/'config.json', config)
     write_json(args.output/'dataset_manifest.json', manifest)
     if args.smoke_test:
-        write_json(args.output/'smoke.json', smoke_check(model, optimizer, loss_fn, loaders['train'].dataset, args.device))
+        write_json(args.output/'smoke.json', smoke_check(model, optimizer, loss_fn, loaders['train'].dataset, args.device,cfg,amp,scaler))
         print('F187N positive/negative forward/backward/optimizer smoke check passed.')
         return
     history, best = [], float('inf')
+    total_updates=total_overflows=consecutive_overflows=0
     for epoch in range(epochs):
         stats = {'epoch': epoch+1}
+        epoch_updates=epoch_overflows=0
         for split in ('train', 'val'):
             model.train(split == 'train')
             total = count = positive_count = negative_count = 0
             positive_dice = negative_area = 0.
-            for x, y, _ in loaders[split]:
+            for batch_index,(x, y, indices) in enumerate(loaders[split]):
                 x, y = x.to(args.device), y.to(args.device)
                 optimizer.zero_grad(set_to_none=True)
                 with torch.set_grad_enabled(split == 'train'):
@@ -249,10 +264,18 @@ def main():
                         raise RuntimeError('Nonfinite logits/loss')
                     if split == 'train':
                         scaler.scale(loss).backward()
-                        scaler.unscale_(optimizer)
-                        torch.nn.utils.clip_grad_norm_(model.parameters(), cfg['max_grad_norm'], error_if_nonfinite=True)
-                        scaler.step(optimizer)
-                        scaler.update()
+                        update=scaled_optimizer_step(model,optimizer,scaler,cfg['max_grad_norm'])
+                        if update['updated']:
+                            epoch_updates+=1;total_updates+=1;consecutive_overflows=0
+                        else:
+                            epoch_overflows+=1;total_overflows+=1;consecutive_overflows+=1
+                            event=dict(update,epoch=epoch+1,batch=batch_index+1,
+                                samples=[loaders[split].dataset.rows[i]['id'] for i in indices.tolist()])
+                            with (args.output/'overflow_events.jsonl').open('a') as stream:
+                                stream.write(json.dumps(event)+'\n')
+                            print(json.dumps(dict(event,event='fp16_overflow_skipped')),flush=True)
+                            if consecutive_overflows>=8:
+                                raise RuntimeError('8 consecutive gradient overflows; stopping preserved run for diagnosis')
                 pred = (logits.detach().sigmoid() > cfg['prediction_threshold']).float()
                 axes = (1, 2, 3)
                 positive = y.sum(axes) > 0
@@ -266,6 +289,11 @@ def main():
             stats[split+'_loss'] = total/count
             stats[split+'_positive_dice'] = positive_dice/positive_count if positive_count else None
             stats[split+'_negative_fp_area_fraction'] = negative_area/negative_count if negative_count else None
+        if not epoch_updates:
+            raise RuntimeError('Epoch completed without any optimizer updates')
+        stats.update(optimizer_updates=epoch_updates,overflow_skipped_updates=epoch_overflows,
+            cumulative_optimizer_updates=total_updates,cumulative_overflow_skips=total_overflows,
+            loss_scale=float(scaler.get_scale()))
         history.append(stats)
         checkpoint = {'model': model.state_dict(), 'optimizer': optimizer.state_dict(),
                       'scaler': scaler.state_dict(), 'epoch': epoch+1, 'config': config, 'history': history}
