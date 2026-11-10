@@ -182,6 +182,11 @@ and [spectral constraints](../configs/cloudy/NGC1068_SPECTRAL_CONSTRAINTS.md).
 
 ## Logs, results, inspection, and retries
 
+To inspect a completed run locally, use the [verified review export and SCP
+transfer](REPOSITORY_SYNC.md#export-a-completed-arc-f187n-run-for-local-inspection).
+It includes all evaluated test inputs/masks and optionally the selected
+checkpoint, without transferring every epoch checkpoint or committing results.
+
 The first full ARC training attempt (857188) completed 17 epochs, then failed
 on a nonfinite gradient norm. See [the partial result and numerical
 correction](F187N_TRAINING_FAILURE_857188.md) for interpretation and the

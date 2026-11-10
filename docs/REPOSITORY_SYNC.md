@@ -4,6 +4,55 @@ Git holds reusable source, tests, configurations, small instrument response
 tables with provenance, scientific documentation, and authored LaTeX sources.
 Generated research products remain local or are transferred separately.
 
+## Export a completed ARC F187N run for local inspection
+
+Keep source changes in GitHub and transfer generated results with `scp`. The
+review exporter reads the completed run without modifying it, verifies the
+source/dataset hashes, and creates a new archive plus a SHA-256 sidecar. It uses
+only the standard library and runs with login-node Python 3.6; no allocation,
+Anaconda activation, generation or training is needed.
+
+For completed retry job 859150, run **on ARC**:
+
+```bash
+cd ~/projects/IonizationCone-Automation &&
+git pull --ff-only origin master &&
+python3 scripts/maintenance/export_f187n_review.py \
+  --run-root /work/ppi246/agn/experiments/f187n_full_v3_retry_v1 \
+  --output /work/ppi246/agn/exports/f187n_review_859150_v1.tar.gz \
+  --include-selected-checkpoint
+```
+
+The archive includes reports, epoch metrics, plots, logs, submission records,
+the frozen code/scientific inputs, the common valid mask, and the input/mask
+arrays for **every evaluated test image**. The flag adds only the selected
+checkpoint (epoch 30 for this run). Other epoch checkpoints, environments,
+training image arrays and large per-galaxy component archives remain on ARC.
+The original full dataset metadata is retained with an explicit warning that
+the exported arrays are only a test subset; this is not a training dataset.
+Original absolute ARC paths in metadata are preserved for provenance.
+
+Then run **on the local computer, outside SSH**:
+
+```bash
+cd /home/wlll2x/Programming/AGN/IonizationCone-Automation &&
+mkdir -p results/transfers &&
+scp 'ppi246@arc.utsa.edu:/work/ppi246/agn/exports/f187n_review_859150_v1.tar.gz*' results/transfers/ &&
+venv/bin/python scripts/maintenance/export_f187n_review.py \
+  --verify results/transfers/f187n_review_859150_v1.tar.gz
+```
+
+The quoted remote wildcard copies the archive and checksum sidecar. The local
+verifier checks every member's size/hash and rejects unsafe or duplicate paths
+without extracting or loading the checkpoint. A failed transfer can be retried;
+an existing export will not be overwritten. Use a new export filename to make
+a new archive. Results stay under ignored `results/`; do not force-add them to
+Git. Once transferred, extract into a fresh review directory, inspect the saved
+plots/reports, and use the selected checkpoint plus frozen source to recompute
+all test predictions locally if needed. No environment is transferred.
+
+## Tracked files and cleanup history
+
 New files under `data/`, `results/`, `saved_runs/`, and compiled documents under
 `output/` are ignored. On 2026-11-02, 482 previously tracked generated images,
 animations, and array/FITS links were removed from the current Git tree. Small
