@@ -1,0 +1,16 @@
+{
+  "schema": "f187n_fit_set_diagnostic_v1",
+  "fit_groups": 4,
+  "max_epochs": 300,
+  "evaluate_every": 10,
+  "minimum_epochs": 30,
+  "variants": ["smooth_control", "clumpy_cone", "full"],
+  "boundary_tolerance_pixels": 2,
+  "recovery_checks": {
+    "mean_positive_dice_at_least": 0.95,
+    "minimum_positive_dice_at_least": 0.90,
+    "mean_positive_boundary_f1_at_least": 0.90,
+    "maximum_negative_area_at_most": 0.01
+  },
+  "scope": "Memorization of training examples only; thresholds are diagnostic targets, not scientific acceptance criteria. No validation/test arrays or checkpoint tuning on held-out examples."
+}

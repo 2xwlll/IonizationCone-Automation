@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export a completed F187N pilot for local review without changing the run.
+"""Export a completed F187N pilot or fit-set diagnostic without changing the run.
 
 Standard library only; runs on ARC login-node Python 3.6. Exports reports,
 plots, logs, frozen source/inputs and the evaluated test inputs/masks. An
@@ -66,6 +66,8 @@ def export_review(run_root, output, include_checkpoint=False):
     run_root, output = run_root.resolve(), output.resolve()
     if output.exists() or Path(str(output)+'.sha256').exists():
         raise ValueError('Export already exists; choose a fresh output filename')
+    if (run_root/'diagnostics/summary.json').is_file():
+        return export_fit_review(run_root, output, include_checkpoint)
     model_root = run_root/'training/model'
     config = json.loads((model_root/'config.json').read_text())
     report = json.loads((model_root/'test_report.json').read_text())
@@ -126,16 +128,82 @@ def export_review(run_root, output, include_checkpoint=False):
         'archives are exported. Training arrays are not exported.\n'
         'A completed shared-generator pilot is not real-galaxy validation.\n'
     ).encode('utf-8')
-    records = {name: {'sha256': digest(path), 'bytes': path.stat().st_size}
-               for name, path in sorted(files.items())}
-    records['README_REVIEW.txt'] = {'sha256': hashlib.sha256(readme).hexdigest(), 'bytes': len(readme)}
     export_manifest = {
         'schema': 'f187n_review_export_v1',
-        'created_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
         'source_run': str(run_root), 'source_dataset': str(dataset),
         'test_ids': ids, 'selected_epoch': best_epoch,
         'selected_checkpoint_included': include_checkpoint,
-        'dataset_is_test_subset': True, 'files': records}
+        'dataset_is_test_subset': True}
+    result = write_export(output, files, export_manifest, readme)
+    result.update(test_images=len(ids), selected_epoch=best_epoch, selected_checkpoint_included=include_checkpoint)
+    return result
+
+
+def export_fit_review(run_root, output, include_checkpoint=False):
+    """Training-only diagnostic export; no held-out image arrays are included."""
+    frozen = json.loads((run_root/'snapshot.json').read_text())
+    info = frozen['overfit_diagnostic']
+    summary = json.loads((run_root/'diagnostics/summary.json').read_text())
+    if summary['fit_selection'] != info['fit_selection']:
+        raise ValueError('Diagnostic selection differs from frozen training selection')
+    dataset = Path(info['dataset']).resolve()
+    if digest(dataset/'manifest.json') != info['dataset_manifest_sha256'] or summary['dataset_manifest_sha256'] != info['dataset_manifest_sha256']:
+        raise ValueError('Diagnostic dataset changed')
+    manifest = json.loads((dataset/'manifest.json').read_text())
+    samples = {r['id']: r for r in manifest['samples']}
+    ids = sorted({i for selection in info['fit_selection']['sample_ids_by_variant'].values() for i in selection})
+    files = {}
+
+    def add(root, relative, prefix, expected=None):
+        path = safe_file(root, relative)
+        if expected is not None and digest(path) != expected:
+            raise ValueError('Changed diagnostic source file: '+str(path))
+        files[str(Path(prefix)/relative)] = path
+
+    add(dataset, 'manifest.json', 'dataset')
+    add(dataset, 'plan.json', 'dataset', info['dataset_plan_sha256'])
+    add(dataset, manifest['valid_file'], 'dataset', manifest['valid_sha256'])
+    for identifier in ids:
+        row = samples[identifier]
+        if row['split'] != 'train': raise ValueError('Held-out image in diagnostic export')
+        for field in ('image', 'mask'):
+            add(dataset, row[field], 'dataset', row[field+'_sha256'])
+    add(run_root, 'snapshot.json', 'run')
+    for relative, expected in frozen['sha256'].items():
+        if not relative.startswith('code/'): raise ValueError('Unsafe diagnostic source prefix')
+        add(run_root, relative, 'run', expected)
+    epochs = {}
+    for variant, selection in info['fit_selection']['sample_ids_by_variant'].items():
+        result = summary['variants'][variant]
+        if [s['id'] for s in result['samples']] != selection:
+            raise ValueError('Diagnostic report sample mismatch')
+        epochs[variant] = result['selected_epoch']
+        if include_checkpoint: add(run_root, 'diagnostics/'+variant+'/selected.pth', 'run')
+    for folder in ('diagnostics', 'logs', 'submissions'):
+        for path in sorted((run_root/folder).rglob('*')):
+            if path.is_file() and path.suffix in ('.json', '.jsonl', '.csv', '.png', '.log', '.npz'):
+                add(run_root, str(path.relative_to(run_root)), 'run')
+    metadata = {'schema': 'f187n_fit_review_export_v1', 'source_run': str(run_root),
+        'source_dataset': str(dataset), 'test_ids': [], 'fit_ids': ids,
+        'selected_epochs': epochs, 'selected_checkpoint_included': include_checkpoint,
+        'dataset_is_training_subset': True, 'scope': 'Memorization diagnostic only; no held-out evaluation.'}
+    readme = ('F187N training-example memorization diagnostic\n\n'
+              'run/diagnostics contains fit-set reports, curves, previews and probabilities.\n'
+              'dataset/ includes only the fitted TRAINING arrays, not validation/test arrays.\n'
+              'Original full metadata and absolute ARC paths are retained for provenance.\n'
+              'This is an incomplete review subset, not a complete training dataset.\n'
+              'Optional selected checkpoints are training-selected diagnostic models.\n'
+              'High fit-set scores are not evidence of generalization or real-galaxy accuracy.\n').encode('utf-8')
+    result = write_export(output, files, metadata, readme)
+    result.update(training_images=len(ids), selected_epochs=epochs, selected_checkpoint_included=include_checkpoint)
+    return result
+
+
+def write_export(output, files, export_manifest, readme):
+    records = {name: {'sha256': digest(path), 'bytes': path.stat().st_size}
+               for name, path in sorted(files.items())}
+    records['README_REVIEW.txt'] = {'sha256': hashlib.sha256(readme).hexdigest(), 'bytes': len(readme)}
+    export_manifest = dict(export_manifest, created_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(), files=records)
     output.parent.mkdir(parents=True, exist_ok=True)
     # Exclusive creation preserves earlier exports and leaves partial evidence on failure.
     with output.open('xb') as stream:
@@ -151,8 +219,7 @@ def export_review(run_root, output, include_checkpoint=False):
     with Path(str(output)+'.sha256').open('x') as stream:
         stream.write(digest(output)+'  '+output.name+'\n')
     return {'status': 'verified', 'archive': str(output), 'bytes': output.stat().st_size,
-            'sha256': digest(output), 'test_images': len(ids), 'selected_epoch': best_epoch,
-            'selected_checkpoint_included': include_checkpoint}
+            'sha256': digest(output)}
 
 
 def main():
@@ -164,7 +231,10 @@ def main():
     args = parser.parse_args()
     if args.verify:
         manifest = verify_archive(args.verify)
-        print('Verified {} files and {} held-out images.'.format(len(manifest['files']), len(manifest['test_ids'])))
+        if 'fit_ids' in manifest:
+            print('Verified {} files and {} training diagnostic images; no held-out evaluation.'.format(len(manifest['files']), len(manifest['fit_ids'])))
+        else:
+            print('Verified {} files and {} held-out images.'.format(len(manifest['files']), len(manifest['test_ids'])))
     else:
         if args.run_root is None or args.output is None:
             parser.error('--run-root and --output are required for export')

@@ -182,6 +182,11 @@ and [spectral constraints](../configs/cloudy/NGC1068_SPECTRAL_CONSTRAINTS.md).
 
 ## Logs, results, inspection, and retries
 
+For the follow-up to the first completed pilot, see the [small training-set
+boundary-recovery diagnostic](F187N_OVERFIT_DIAGNOSTIC.md). It compares the
+current model on smooth, clumpy cone-only and full images from four training
+groups, with its own output directory and automatic review export.
+
 To inspect a completed run locally, use the [verified review export and SCP
 transfer](REPOSITORY_SYNC.md#export-a-completed-arc-f187n-run-for-local-inspection).
 It includes all evaluated test inputs/masks and optionally the selected

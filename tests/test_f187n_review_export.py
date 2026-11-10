@@ -77,6 +77,31 @@ class ReviewExportTests(unittest.TestCase):
             self.assertFalse(manifest['selected_checkpoint_included'])
             self.assertFalse(any(name.endswith('.pth') for name in manifest['files']))
 
+    def test_fit_diagnostic_export_keeps_training_and_holdout_roles_separate(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            run, dataset = self.fixture(root)
+            selection = {'groups': ['training'], 'sample_ids_by_variant': {'full': ['training']}}
+            frozen = json.loads((run/'snapshot.json').read_text())
+            frozen['overfit_diagnostic'] = {'dataset': str(dataset),
+                'dataset_manifest_sha256': digest(dataset/'manifest.json'),
+                'dataset_plan_sha256': digest(dataset/'plan.json'), 'fit_selection': selection}
+            (run/'snapshot.json').write_text(json.dumps(frozen))
+            (run/'diagnostics/full').mkdir(parents=True)
+            (run/'diagnostics/full/selected.pth').write_bytes(b'fit checkpoint')
+            (run/'diagnostics/summary.json').write_text(json.dumps({'fit_selection': selection,
+                'dataset_manifest_sha256': digest(dataset/'manifest.json'),
+                'variants': {'full': {'selected_epoch': 10, 'samples': [{'id': 'training'}]}}}))
+            output = root/'fit_review.tar.gz'
+            result = export_review(run, output, include_checkpoint=True)
+            manifest = verify_archive(output)
+            self.assertEqual(result['training_images'], 1)
+            self.assertEqual(manifest['test_ids'], [])
+            self.assertEqual(manifest['fit_ids'], ['training'])
+            self.assertIn('dataset/training_image.npy', manifest['files'])
+            self.assertNotIn('dataset/positive_image.npy', manifest['files'])
+            self.assertIn('run/diagnostics/full/selected.pth', manifest['files'])
+
     def test_changed_test_array_blocks_export(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

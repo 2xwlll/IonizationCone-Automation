@@ -23,6 +23,9 @@ surfaces and 3D descriptor scatter plots with their synthetic source images.
 The [ARC training failure review](docs/F187N_TRAINING_FAILURE_857188.md)
 records the first full run's partial learning, the numerical correction, and
 the training-only retry that reuses its dataset.
+The [ARC boundary-recovery diagnostic](docs/F187N_OVERFIT_DIAGNOSTIC.md)
+tests whether the current model can memorize sharp targets on a few training
+examples before expanding the population or network.
 
 Saved NGC 1068 parameters, source settings, previews, and local data links are in
 [saved_runs/ngc1068_20260514](saved_runs/ngc1068_20260514/README.md).
