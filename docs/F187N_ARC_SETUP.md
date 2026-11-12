@@ -182,6 +182,13 @@ and [spectral constraints](../configs/cloudy/NGC1068_SPECTRAL_CONSTRAINTS.md).
 
 ## Logs, results, inspection, and retries
 
+For the next pixel-model comparison, opt-in validation stopping and the
+separate cone-parameter-head proposal are documented in
+[geometry and stopping safeguards](F187N_CONSTRAINED_GEOMETRY_PROPOSAL.md).
+The launcher accepts `--train-config configs/cloudy/train_f187n_pilot_v3_guarded.json`;
+its epoch cap comes from that file unless overridden. This does not change
+existing frozen runs or reserve new physical realizations automatically.
+
 For the follow-up to the first completed pilot, see the [small training-set
 boundary-recovery diagnostic](F187N_OVERFIT_DIAGNOSTIC.md). It compares the
 current model on smooth, clumpy cone-only and full images from four training

@@ -117,7 +117,8 @@ def main():
     parser.add_argument('--run-root', type=Path)
     parser.add_argument('--env-prefix', type=Path)
     parser.add_argument('--groups', type=int, default=64)
-    parser.add_argument('--epochs', type=int, default=30)
+    parser.add_argument('--epochs', type=int, help='Override the selected training configuration epoch cap')
+    parser.add_argument('--train-config', type=Path, help='Explicit versioned training configuration for a fresh run')
     parser.add_argument('--variant', choices=('full', 'smooth_control', 'clumpy_cone'), default='full')
     parser.add_argument('--smoke-only', action='store_true')
     parser.add_argument('--dry-run', action='store_true', help='Prepare and verify a frozen run without submitting jobs')
@@ -130,10 +131,12 @@ def main():
         return
     if args.run_root is None:
         parser.error('--run-root is required; choose a fresh experiment directory')
-    if args.groups < 3 or args.epochs < 1:
+    if args.groups < 3 or (args.epochs is not None and args.epochs < 1):
         parser.error('Require groups >= 3 and epochs >= 1')
     run_root = args.run_root.resolve()
     if args.resume:
+        if args.train_config is not None:
+            parser.error('Resume uses the original frozen training configuration')
         settings = verify_snapshot(run_root)
         env_prefix = Path(settings['environment'])
         if args.env_prefix is not None and args.env_prefix.resolve() != env_prefix:
@@ -142,7 +145,10 @@ def main():
         if args.env_prefix is None:
             parser.error('--env-prefix is required for a fresh run')
         env_prefix = args.env_prefix.resolve()
-        settings = snapshot(run_root, env_prefix, args.groups, args.epochs, args.variant, args.smoke_only)
+        training = json.loads(args.train_config.read_text()) if args.train_config is not None else None
+        epochs = args.epochs if args.epochs is not None else (training or {}).get('epochs', 30)
+        settings = snapshot(run_root, env_prefix, args.groups, epochs, args.variant, args.smoke_only,
+                            training_settings=training)
         verify_snapshot(run_root)
     generation, training = submission_commands(run_root)
     if args.dry_run:

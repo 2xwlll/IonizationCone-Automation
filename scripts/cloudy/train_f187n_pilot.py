@@ -18,6 +18,7 @@ from torch.utils.data import DataLoader, Dataset
 from src.machine_learning.models.model_2d import UNet
 from src.machine_learning.losses.f187n import F187NLoss
 from src.machine_learning.optimization import scaled_optimizer_step
+from src.machine_learning.validation_stopping import ValidationStopping, balanced_mask_score
 from src.simple_utils.f187n_pilot_dataset import (
     VARIANTS, validate_manifest, sha256, write_json, fit_mask_angles, select_samples)
 from scripts.cloudy.compare_real_synthetic_cones import (
@@ -195,6 +196,7 @@ def main():
     parser.add_argument('--expected-manifest-sha256')
     args = parser.parse_args()
     cfg = json.loads(args.config.read_text())
+    stopping = ValidationStopping(cfg)
     if cfg.get('loss') != 'f187n_bce_positive_dice_v1':
         raise ValueError('Use the explicit v2 loss/training config')
     variant = args.variant or cfg['variant']
@@ -230,6 +232,7 @@ def main():
     code_paths = [Path(__file__), ROOT/'src/simple_utils/f187n_pilot_dataset.py',
         ROOT/'src/machine_learning/models/model_2d.py', ROOT/'src/machine_learning/losses/f187n.py',
         ROOT/'src/machine_learning/optimization.py',
+        ROOT/'src/machine_learning/validation_stopping.py',
         ROOT/'scripts/cloudy/compare_real_synthetic_cones.py']
     config = dict(cfg, variant=variant, epochs=epochs, device=args.device, dataset=str(dataset),
         smoke_test=args.smoke_test, dataset_manifest_sha256=sha256(dataset/'manifest.json'),
@@ -244,7 +247,7 @@ def main():
         write_json(args.output/'smoke.json', smoke_check(model, optimizer, loss_fn, loaders['train'].dataset, args.device,cfg,amp,scaler))
         print('F187N positive/negative forward/backward/optimizer smoke check passed.')
         return
-    history, best = [], float('inf')
+    history = []
     total_updates=total_overflows=consecutive_overflows=0
     for epoch in range(epochs):
         stats = {'epoch': epoch+1}
@@ -294,6 +297,12 @@ def main():
         stats.update(optimizer_updates=epoch_updates,overflow_skipped_updates=epoch_overflows,
             cumulative_optimizer_updates=total_updates,cumulative_overflow_skips=total_overflows,
             loss_scale=float(scaler.get_scale()))
+        stats['val_balanced_mask_score'] = (balanced_mask_score(
+            stats['val_positive_dice'], stats['val_negative_fp_area_fraction'])
+            if stats['val_positive_dice'] is not None and stats['val_negative_fp_area_fraction'] is not None else None)
+        stopping.update(stats, epoch+1)
+        stats['selection_value'] = stats[stopping.metric]
+        stats['stale_validation_epochs'] = stopping.stale_epochs
         history.append(stats)
         checkpoint = {'model': model.state_dict(), 'optimizer': optimizer.state_dict(),
                       'scaler': scaler.state_dict(), 'epoch': epoch+1, 'config': config, 'history': history}
@@ -302,13 +311,17 @@ def main():
         torch.save(checkpoint, temporary)
         temporary.rename(path)
         write_json(args.output/f'epoch_{epoch+1:03d}.json', stats)
-        if stats['val_loss'] < best:
-            best, best_epoch = stats['val_loss'], epoch+1
         print(json.dumps(stats), flush=True)
+        if stopping.should_stop:
+            print(json.dumps(dict(event='validation_early_stopping', **stopping.state())), flush=True)
+            break
+    best_epoch = stopping.best_epoch
     saved = torch.load(args.output/f'epoch_{best_epoch:03d}.pth', map_location=args.device, weights_only=True)
     model.load_state_dict(saved['model'])
     write_json(args.output/'selection.json', {'best_epoch': best_epoch,
-        'criterion': 'minimum validation loss; test evaluated once afterward'})
+        'criterion': stopping.mode+' '+stopping.metric+'; test evaluated once after selection',
+        'validation_stopping': dict(stopping.state(), stopped_early=len(history)<epochs, epoch_cap=epochs),
+        'score_definition': 'val_balanced_mask_score = 0.5 * (positive full-stamp Dice + 1 - negative full-stamp predicted area); selection objective, not detection accuracy'})
     report, previews = test_report(model, loaders['test'], dataset, manifest, args.device, cfg)
     write_json(args.output/'test_report.json', report)
     save_previews(args.output/'test_predictions.png', previews)

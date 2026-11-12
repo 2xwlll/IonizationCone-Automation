@@ -1,0 +1,26 @@
+{
+  "variant": "full",
+  "features": [16, 32, 64, 128],
+  "batch_size": 4,
+  "epochs": 150,
+  "learning_rate": 0.0001,
+  "pos_weight": 1.0,
+  "seed": 42,
+  "num_workers": 0,
+  "cpu_threads": 4,
+  "mixed_precision": true,
+  "status": "Proposed next controlled pilot with validation stopping; requires a fresh reserved final assessment population",
+  "loss": "f187n_bce_positive_dice_v1",
+  "bce_weight": 1.0,
+  "dice_weight": 1.0,
+  "max_grad_norm": 5.0,
+  "prediction_threshold": 0.5,
+  "negative_area_flag_fraction": 0.01,
+  "selection_metric": "val_balanced_mask_score",
+  "early_stopping": {
+    "enabled": true,
+    "patience": 12,
+    "min_delta": 0.001,
+    "min_epochs": 20
+  }
+}

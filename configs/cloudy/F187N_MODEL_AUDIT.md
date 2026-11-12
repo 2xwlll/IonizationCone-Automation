@@ -1,5 +1,12 @@
 # F187N model, loss, and evaluation audit
 
+Update 2026-11-12: user-supplied ARC job 859951 logs report successful fit-set
+memorization, including full-image Dice 0.9516 and boundary F1 0.9100 on four
+training realizations. This supports sharp-mask fitting capacity, not held-out
+accuracy. The pixel trainer now supports opt-in validation stopping with best
+checkpoint restoration. See the [constrained geometry proposal and safeguards](../../docs/F187N_CONSTRAINED_GEOMETRY_PROPOSAL.md).
+The geometry parameter head is proposed and not yet implemented or trained.
+
 Update 2026-11-09: the original ARC full run failed during epoch 18 after
 17 completed epochs. Scaled-gradient overflow handling and smoke-test precision
 coverage have been corrected. See [the failure review and retry](../../docs/F187N_TRAINING_FAILURE_857188.md).

@@ -66,6 +66,24 @@ class F187NLauncherTests(unittest.TestCase):
             self.assertEqual(check.call_count,1)  # Query only: no duplicate sbatch.
             self.assertFalse((run/'.submission.lock').exists())
 
+    def test_explicit_training_configuration_keeps_cap_unless_overridden(self):
+        for override in (None, 3):
+            with self.subTest(override=override), tempfile.TemporaryDirectory() as folder:
+                root=Path(folder);source,env,_=self.prepare(root)
+                config=root/'guarded.json'
+                config.write_text(json.dumps({'epochs':150,'selection_metric':'val_balanced_mask_score',
+                    'early_stopping':{'enabled':True,'patience':12}}))
+                run=root/'new_guarded'
+                args=['launcher','--run-root',str(run),'--env-prefix',str(env),
+                      '--train-config',str(config),'--dry-run']
+                if override is not None:args+=['--epochs',str(override)]
+                with patch('sys.argv',args),patch.object(launcher,'ROOT',source),contextlib.redirect_stdout(io.StringIO()):
+                    launcher.main()
+                frozen=json.loads((run/'code/configs/cloudy/f187n_train_launch.json').read_text())
+                self.assertEqual(frozen['epochs'],override or 150)
+                self.assertTrue(frozen['early_stopping']['enabled'])
+                self.assertEqual(frozen['selection_metric'],'val_balanced_mask_score')
+
     def test_failed_training_submission_preserves_generation_id(self):
         with tempfile.TemporaryDirectory() as folder:
             _,_,run=self.prepare(Path(folder))

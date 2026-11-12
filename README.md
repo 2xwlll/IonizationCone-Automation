@@ -26,6 +26,9 @@ the training-only retry that reuses its dataset.
 The [ARC boundary-recovery diagnostic](docs/F187N_OVERFIT_DIAGNOSTIC.md)
 tests whether the current model can memorize sharp targets on a few training
 examples before expanding the population or network.
+The [constrained geometry proposal](docs/F187N_CONSTRAINED_GEOMETRY_PROPOSAL.md)
+records the successful memorization result, a proposed cone-parameter output,
+and implemented opt-in validation stopping for the pixel-model comparison.
 
 Saved NGC 1068 parameters, source settings, previews, and local data links are in
 [saved_runs/ngc1068_20260514](saved_runs/ngc1068_20260514/README.md).
